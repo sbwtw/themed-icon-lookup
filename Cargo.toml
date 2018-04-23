@@ -1,0 +1,6 @@
+[package]
+name = "themed-icon-lookup"
+version = "0.1.0"
+authors = ["石博文 <sbw@sbw.so>"]
+
+[dependencies]
