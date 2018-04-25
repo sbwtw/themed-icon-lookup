@@ -4,16 +4,36 @@ use ini::Ini;
 use std::path::Path;
 
 #[derive(Debug, Default)]
-struct IconTheme {
+pub struct IconTheme {
     name: String,
     inherits: Option<Vec<String>>,
     directories: Vec<IconDirectory>,
 }
 
-#[derive(Debug, Default)]
-struct IconDirectory {
+#[derive(Debug)]
+pub struct IconDirectory {
     name: String,
+    type_: DirectoryType,
     size: u32,
+    scale: u32,
+}
+
+#[derive(Debug)]
+enum DirectoryType {
+    Fixed,
+    Scalable(u32, u32),
+    Threshold(u32),
+}
+
+impl Default for IconDirectory {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            type_: DirectoryType::Threshold(2),
+            size: 0,
+            scale: 1,
+        }
+    }
 }
 
 impl IconDirectory {
@@ -21,10 +41,52 @@ impl IconDirectory {
 
         let properties = settings.section(Some(name.as_ref())).unwrap();
 
-        Self {
+        let mut r = Self {
             name: name.as_ref().to_string(),
-            size: properties.get("Size").unwrap().parse().unwrap(),
+            ..Default::default()
+        };
+
+        if let Some(Ok(size)) = properties.get("Size").map(|x| x.parse()) {
+            r.size = size;
         }
+
+        if let Some(Ok(scale)) = properties.get("Scale").map(|x| x.parse()) {
+            r.scale = scale;
+        }
+
+        match properties.get("Type").map(|x| x.as_str()) {
+            Some("Fixed") => {
+                r.type_ = DirectoryType::Fixed;
+            },
+            Some("Scalable") => {
+                let min = properties.get("MinSize").map(|x| x.parse().unwrap_or(r.size));
+                let max = properties.get("MaxSize").map(|x| x.parse().unwrap_or(r.size));
+
+                r.type_ = DirectoryType::Scalable(min.unwrap_or(r.size), max.unwrap_or(r.size))
+            },
+            Some("Threshold") => {
+                r.type_ = DirectoryType::Threshold(properties.get("Threshold").unwrap().parse().unwrap_or(2));
+            },
+            Some(unknown) => {
+                println!("==========> {}", unknown);
+            },
+            None => {},
+        }
+
+        r
+    }
+
+    /// DirectoryMatchesSize
+    pub fn matches_size(&self, size: u32, scale: u32) -> bool {
+        if scale != self.scale {
+            return false;
+        }
+
+        return match self.type_ {
+            DirectoryType::Fixed => self.size == size,
+            DirectoryType::Scalable(min, max) => min <= size && max >= size,
+            DirectoryType::Threshold(threshold) => size - threshold <= size && size + threshold >= size,
+        };
     }
 }
 

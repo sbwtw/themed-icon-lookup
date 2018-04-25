@@ -9,6 +9,8 @@ extern crate ini;
 
 mod icon_theme;
 
+use icon_theme::*;
+
 use std::path::PathBuf;
 
 macro_rules! ret_if_found {
@@ -21,8 +23,8 @@ macro_rules! ret_if_found {
     };
 }
 
-pub fn find_icon_with_theme<T, I>(theme: T, icon: I, size: u32, scale: f32) -> Option<PathBuf>
-  where T: AsRef<str>, I: AsRef<str> {
+pub fn find_icon_with_theme<I>(theme: &IconTheme, icon: I, size: u32, scale: f32) -> Option<PathBuf>
+  where I: AsRef<str> {
 
     // find in theme
     ret_if_found!(lookup_icon(theme, icon, size, scale));
@@ -30,8 +32,8 @@ pub fn find_icon_with_theme<T, I>(theme: T, icon: I, size: u32, scale: f32) -> O
     unimplemented!()
 }
 
-fn lookup_icon<T, I>(theme: T, icon: I, size: u32, scale: f32) -> Option<PathBuf>
-  where T: AsRef<str>, I: AsRef<str> {
+fn lookup_icon<I>(theme: &IconTheme, icon: I, size: u32, scale: f32) -> Option<PathBuf>
+  where I: AsRef<str> {
 
     unimplemented!()
 }
