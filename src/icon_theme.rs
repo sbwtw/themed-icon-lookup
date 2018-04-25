@@ -14,15 +14,15 @@ pub struct IconTheme {
 pub struct IconDirectory {
     name: String,
     type_: DirectoryType,
-    size: u32,
-    scale: u32,
+    size: i32,
+    scale: i32,
 }
 
 #[derive(Debug)]
 enum DirectoryType {
     Fixed,
-    Scalable(u32, u32),
-    Threshold(u32),
+    Scalable(i32, i32),
+    Threshold(i32),
 }
 
 impl Default for IconDirectory {
@@ -77,7 +77,7 @@ impl IconDirectory {
     }
 
     /// DirectoryMatchesSize
-    pub fn matches_size(&self, size: u32, scale: u32) -> bool {
+    pub fn matches_size(&self, size: i32, scale: i32) -> bool {
         if scale != self.scale {
             return false;
         }
@@ -87,6 +87,26 @@ impl IconDirectory {
             DirectoryType::Scalable(min, max) => min <= size && max >= size,
             DirectoryType::Threshold(threshold) => size - threshold <= size && size + threshold >= size,
         };
+    }
+
+    /// DirectorySizeDistance
+    pub fn size_distance(&self, size: i32, scale: i32) -> i32 {
+        match self.type_ {
+            DirectoryType::Fixed => {
+                (self.size * self.scale - size * scale).abs()
+            },
+            DirectoryType::Scalable(min, max) => {
+                if size * scale < min * scale {
+                    min * scale - size * scale
+                } else {
+                    size * scale - max * scale
+                }
+            },
+            DirectoryType::Threshold(_threshold) => {
+                // FIXME
+                (self.size * self.scale - size * scale).abs()
+            },
+        }
     }
 }
 
