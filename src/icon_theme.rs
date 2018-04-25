@@ -1,11 +1,33 @@
 
 use ini::Ini;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::convert::{From, Into};
+
+static EXTS: &'static [&'static str] = &["png", "svg"];
+
+#[derive(Debug)]
+pub struct IconName {
+    inner_name: String,
+}
+
+impl<T> From<T> for IconName
+  where T: AsRef<str> {
+    fn from(from: T) -> Self {
+        Self { inner_name: from.as_ref().to_string() }
+    }
+}
+
+impl IconName {
+    fn name(&self) -> &str {
+        &self.inner_name
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct IconTheme {
     name: String,
+    basedir: String,
     inherits: Option<Vec<String>>,
     directories: Vec<IconDirectory>,
 }
@@ -138,6 +160,33 @@ impl IconTheme {
 
         Ok(r)
     }
+
+    pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
+
+        let name: &str = name.name();
+        let path = Path::new("/usr/share/icons/Flattr");
+
+        for subdir in &self.directories {
+            if !subdir.matches_size(size, scale) { continue; }
+
+            for ext in EXTS {
+                let p = path.join(&subdir.name)
+                            .join(&name)
+                            .with_extension(&ext);
+
+                if p.is_file() {
+                    return Some(p);
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn lookup_fallback_icon(&self, name: &IconName) -> Option<PathBuf> {
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -149,6 +198,7 @@ mod test {
         let f = "/usr/share/icons/Flattr/index.theme";
         let icon_theme = IconTheme::from_file(f).unwrap();
 
-        println!("{:#?}", icon_theme);
+        let r = icon_theme.lookup_icon(&"system-suspend".into(), 32, 1);
+        println!("{:#?}", r);
     }
 }
