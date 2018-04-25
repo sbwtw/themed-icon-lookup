@@ -5,6 +5,8 @@
 //! [Icon lookup specific](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#icon_lookup)
 //!
 
+extern crate ini;
+
 mod icon_theme;
 
 use std::path::PathBuf;
