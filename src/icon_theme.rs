@@ -27,7 +27,7 @@ impl IconName {
 #[derive(Debug, Default)]
 pub struct IconTheme {
     name: String,
-    basedir: String,
+    basedir: PathBuf,
     inherits: Option<Vec<String>>,
     directories: Vec<IconDirectory>,
 }
@@ -133,12 +133,12 @@ impl IconDirectory {
 }
 
 impl IconTheme {
-    pub fn from_file<T: AsRef<Path>>(file: T) -> Result<IconTheme, ()> {
-        let f = Ini::load_from_file(file.as_ref());
+    pub fn from_dir<T: AsRef<Path>>(path: T) -> Result<IconTheme, ()> {
+        let f = Ini::load_from_file(path.as_ref().join("index").with_extension("theme"));
         if f.is_err() { return Err(()); }
         let f = f.unwrap();
 
-        let mut r = Self { ..Default::default() };
+        let mut r = Self { basedir: path.as_ref().to_path_buf(), ..Default::default() };
         let mut directories = vec![];
 
         if let Some(properties) = f.section(Some("Icon Theme")) {
@@ -161,10 +161,17 @@ impl IconTheme {
         Ok(r)
     }
 
+    pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
+
+        let p = Path::new("/usr/share/icons").join(name.as_ref());
+
+        Self::from_dir(p)
+    }
+
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
         let name: &str = name.name();
-        let path = Path::new("/usr/share/icons/Flattr");
+        let path = &self.basedir;
 
         for subdir in &self.directories {
             if !subdir.matches_size(size, scale) { continue; }
@@ -195,8 +202,7 @@ mod test {
 
     #[test]
     fn test_icon_theme() {
-        let f = "/usr/share/icons/Flattr/index.theme";
-        let icon_theme = IconTheme::from_file(f).unwrap();
+        let icon_theme = IconTheme::from_name("Flattr").unwrap();
 
         let r = icon_theme.lookup_icon(&"system-suspend".into(), 32, 1);
         println!("{:#?}", r);
