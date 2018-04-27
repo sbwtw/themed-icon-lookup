@@ -6,7 +6,7 @@ use std::convert::{From, Into};
 
 static EXTS: &'static [&'static str] = &["png", "svg"];
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IconName {
     inner_name: String,
 }
@@ -21,6 +21,15 @@ impl<T> From<T> for IconName
 impl IconName {
     fn name(&self) -> &str {
         &self.inner_name
+    }
+
+    fn fallback(&mut self) -> Option<&IconName> {
+        let last_dot = self.inner_name.rfind('.')?;
+        let last_dash = self.inner_name[..last_dot].rfind('-')?;
+
+        let _ = self.inner_name.drain(last_dash..last_dot).count();
+
+        Some(self)
     }
 }
 
@@ -228,5 +237,15 @@ mod test {
 
         let r = icon_theme.lookup_icon(&"system-suspend".into(), 32, 1);
         println!("{:#?}", r);
+    }
+
+    #[test]
+    fn test_icon_name_fallback() {
+        let mut icon_name = IconName::from("some-icon-name.svg");
+
+        println!("{:?}", icon_name);
+        while let Some(icon_name) = icon_name.fallback() {
+            println!("{:?}", icon_name);
+        }
     }
 }
