@@ -221,7 +221,31 @@ impl IconTheme {
         closest_file
     }
 
-    pub fn lookup_fallback_icon(&self, name: &IconName) -> Option<PathBuf> {
+    pub fn lookup_fallback_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
+
+        let mut fallback = name.clone();
+        while let Some(fallback) = fallback.fallback() {
+            if let Some(icon) = self.lookup_icon(fallback, size, scale) {
+                return Some(icon);
+            }
+        }
+
+        // fallback without any size/scale match
+        let path = &self.basedir;
+        let mut fallback = name.clone();
+        while let Some(fallback) = fallback.fallback() {
+            for subdir in &self.directories {
+                for ext in EXTS {
+                    let p = path.join(&subdir.name)
+                                .join(&fallback.name())
+                                .with_extension(&ext);
+
+                    if p.is_file() {
+                        return Some(p);
+                    }
+                }
+            }
+        }
 
         None
     }
