@@ -170,15 +170,15 @@ impl IconTheme {
 
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
-        let name: &str = name.name();
         let path = &self.basedir;
 
+        // find in normal dirs
         for subdir in &self.directories {
             if !subdir.matches_size(size, scale) { continue; }
 
             for ext in EXTS {
                 let p = path.join(&subdir.name)
-                            .join(&name)
+                            .join(&name.name())
                             .with_extension(&ext);
 
                 if p.is_file() {
@@ -187,7 +187,29 @@ impl IconTheme {
             }
         }
 
-        None
+        // test closest file
+        let mut minimal_distance = i32::max_value();
+        let mut closest_file: Option<PathBuf> = None;
+
+        'dir: for subdir in &self.directories {
+            let distance = subdir.size_distance(size, scale);
+            if distance >= minimal_distance { continue; }
+
+            'ext: for ext in EXTS {
+                let p = path.join(&subdir.name)
+                            .join(&name.name())
+                            .with_extension(&ext);
+
+                if p.is_file() {
+                    closest_file = Some(p);
+                    minimal_distance =  distance;
+
+                    continue 'dir;
+                }
+            }
+        }
+
+        closest_file
     }
 
     pub fn lookup_fallback_icon(&self, name: &IconName) -> Option<PathBuf> {
