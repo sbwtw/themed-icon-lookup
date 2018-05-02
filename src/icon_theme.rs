@@ -37,7 +37,7 @@ impl IconName {
 pub struct IconTheme {
     name: String,
     basedir: PathBuf,
-    inherits: Option<Vec<String>>,
+    inherits: Vec<String>,
     directories: Vec<IconDirectory>,
 }
 
@@ -155,7 +155,7 @@ impl IconTheme {
 
             if let Some(list) = properties.get("Inherits").map(|x| x.split(',')) {
                 let inherits: Vec<String> = list.map(|x| x.to_string()).collect();
-                r.inherits = Some(inherits);
+                r.inherits = inherits;
             }
 
             if let Some(list) = properties.get("Directories").map(|x| x.split(',')) {
@@ -175,6 +175,10 @@ impl IconTheme {
         let p = Path::new("/usr/share/icons").join(name.as_ref());
 
         Self::from_dir(p)
+    }
+
+    pub fn parents(&self) -> &Vec<String> {
+        &self.inherits
     }
 
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
