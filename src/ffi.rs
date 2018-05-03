@@ -25,6 +25,24 @@ pub extern "C" fn find_icon_with_theme_name(theme: *const c_char, icon: *const c
 }
 
 #[no_mangle]
+pub extern "C" fn find_icon(icon: *const c_char, size: i32, scale: i32) -> *const c_char {
+
+    let icon = unsafe { CStr::from_ptr(icon).to_string_lossy() };
+
+    let path = match icon_lookup::find_icon(icon, size, scale) {
+        Some(path) => {
+            CString::new(path.to_string_lossy().as_ref()).unwrap()
+        },
+        _ => CString::new("").unwrap(),
+    };
+
+    let ptr = path.as_ptr();
+    mem::forget(path);
+
+    ptr
+}
+
+#[no_mangle]
 pub extern "C" fn free_cstring(cstring: *mut c_char) {
     unsafe { CString::from_raw(cstring); }
 }

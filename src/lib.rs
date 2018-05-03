@@ -8,5 +8,5 @@
 extern crate ini;
 
 mod icon_theme;
-pub mod icon_lookup;
 pub mod ffi;
+pub mod icon_lookup;

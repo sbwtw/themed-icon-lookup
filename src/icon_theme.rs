@@ -2,7 +2,7 @@
 use ini::Ini;
 
 use std::path::{Path, PathBuf};
-use std::convert::{From, Into};
+use std::convert::From;
 
 static EXTS: &'static [&'static str] = &["png", "svg"];
 
