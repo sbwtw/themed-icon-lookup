@@ -96,7 +96,9 @@ impl IconDirectory {
                 r.type_ = DirectoryType::Scalable(min.unwrap_or(r.size), max.unwrap_or(r.size))
             },
             Some("Threshold") => {
-                r.type_ = DirectoryType::Threshold(properties.get("Threshold").unwrap().parse().unwrap_or(2));
+                let threshold = properties.get("Threshold").and_then(|x| x.parse().ok());
+
+                r.type_ = DirectoryType::Threshold(threshold.unwrap_or(2));
             },
             Some(unknown) => {
                 println!("==========> {}", unknown);
@@ -265,6 +267,11 @@ mod test {
 
         let r = icon_theme.lookup_icon(&"system-suspend".into(), 32, 1);
         println!("{:#?}", r);
+    }
+
+    #[test]
+    fn test_hicolor() {
+        let icon_theme = IconTheme::from_name("hicolor").unwrap();
     }
 
     #[test]
