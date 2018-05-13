@@ -90,8 +90,8 @@ impl IconDirectory {
                 r.type_ = DirectoryType::Fixed;
             },
             Some("Scalable") => {
-                let min = properties.get("MinSize").map(|x| x.parse().unwrap_or(r.size));
-                let max = properties.get("MaxSize").map(|x| x.parse().unwrap_or(r.size));
+                let min = properties.get("MinSize").and_then(|x| x.parse().ok());
+                let max = properties.get("MaxSize").and_then(|x| x.parse().ok());
 
                 r.type_ = DirectoryType::Scalable(min.unwrap_or(r.size), max.unwrap_or(r.size))
             },
