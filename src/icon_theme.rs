@@ -3,8 +3,20 @@ use ini::Ini;
 
 use std::path::{Path, PathBuf};
 use std::convert::From;
+use std::env;
 
 static EXTS: &'static [&'static str] = &["png", "svg"];
+
+lazy_static!{
+    static ref USER_ICON_DIR: Option<PathBuf> = get_user_icon_dir();
+}
+
+fn get_user_icon_dir() -> Option<PathBuf> {
+    env::var("XDG_DATA_HOME")
+        .or(env::var("HOME").map(|x| format!("{}/.local/share", x)))
+        .map(|x| x.into())
+        .ok()
+}
 
 #[derive(Debug, Clone)]
 pub struct IconName {
@@ -261,6 +273,8 @@ impl IconTheme {
 mod test {
     use icon_theme::*;
 
+    use std::env;
+
     #[test]
     fn test_icon_theme() {
         let icon_theme = IconTheme::from_name("Flattr").unwrap();
@@ -271,7 +285,21 @@ mod test {
 
     #[test]
     fn test_hicolor() {
-        let icon_theme = IconTheme::from_name("hicolor").unwrap();
+        let _icon_theme = IconTheme::from_name("hicolor").unwrap();
+    }
+
+    #[test]
+    fn test_fetch_user_dir() {
+        env::remove_var("HOME");
+        env::remove_var("XDG_DATA_HOME");
+
+        assert_eq!(get_user_icon_dir(), None);
+
+        env::set_var("HOME", "fake_home");
+        assert_eq!(get_user_icon_dir(), Some("fake_home/.local/share".into()));
+
+        env::set_var("XDG_DATA_HOME", "fake_xdg_home/.local/share");
+        assert_eq!(get_user_icon_dir(), Some("fake_xdg_home/.local/share".into()));
     }
 
     #[test]
