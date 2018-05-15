@@ -70,7 +70,8 @@ mod test {
     use icon_lookup::*;
 
     #[test]
-    fn test_default_theme() {
-        find_icon("firefox", 48, 1);
+    fn test_find_icon() {
+        let r = find_icon("edit-clear-locationbar-rtl", 16, 1);
+        println!("r = {:?}", r);
     }
 }

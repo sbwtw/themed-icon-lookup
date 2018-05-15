@@ -82,11 +82,14 @@ impl Default for IconDirectory {
 impl IconDirectory {
     fn with_settings<T: AsRef<str>>(settings: &Ini, name: T) -> Self {
 
-        let properties = settings.section(Some(name.as_ref())).unwrap();
-
         let mut r = Self {
             name: name.as_ref().to_string(),
             ..Default::default()
+        };
+
+        let properties = match settings.section(Some(name.as_ref())) {
+            Some(props) => props,
+            None => return r,
         };
 
         if let Some(Ok(size)) = properties.get("Size").map(|x| x.parse()) {
@@ -274,14 +277,6 @@ mod test {
     use icon_theme::*;
 
     use std::env;
-
-    #[test]
-    fn test_icon_theme() {
-        let icon_theme = IconTheme::from_name("Flattr").unwrap();
-
-        let r = icon_theme.lookup_icon(&"system-suspend".into(), 32, 1);
-        println!("{:#?}", r);
-    }
 
     #[test]
     fn test_hicolor() {
