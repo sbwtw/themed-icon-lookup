@@ -1,0 +1,16 @@
+sudo: true
+dist: trusty
+
+language: rust
+
+rust:
+    - stable
+    - nightly
+
+cache:
+    - cargo
+
+script:
+    - cargo build
+    - cargo test
+
