@@ -77,8 +77,16 @@ mod test {
     use icon_lookup::*;
 
     #[test]
-    fn test_find_icon() {
-        let r = find_icon_with_theme_name("Sea", "GammaRay", 96, 1);
-        println!("r = {:?}", r);
+    fn test_find_fixed() {
+        assert_eq!(Some("tests/icons/themed/apps/16/deepin-deb-installer.svg".into()),
+                    find_icon_with_theme_name("themed", "deepin-deb-installer", 16, 1));
+        assert_eq!(Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()),
+                    find_icon_with_theme_name("themed", "deepin-deb-installer", 32, 1));
+        assert_eq!(Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()),
+                    find_icon_with_theme_name("themed", "deepin-deb-installer", 48, 1));
+        assert_eq!(Some("tests/icons/themed/apps/scalable/deepin-deb-installer.svg".into()),
+                    find_icon_with_theme_name("themed", "deepin-deb-installer", 96, 1));
+        assert_eq!(Some("tests/icons/themed/apps/scalable/deepin-deb-installer.svg".into()),
+                    find_icon_with_theme_name("themed", "deepin-deb-installer", 24, 1));
     }
 }

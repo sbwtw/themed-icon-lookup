@@ -189,7 +189,11 @@ impl IconTheme {
 
     pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
 
-        let p = Path::new("/usr/share/icons").join(name.as_ref());
+        let p = if cfg!(test) {
+            Path::new("tests/icons").join(name.as_ref())
+        } else {
+            Path::new("/usr/share/icons").join(name.as_ref())
+        };
 
         Self::from_dir(p)
     }
@@ -277,11 +281,6 @@ mod test {
     use icon_theme::*;
 
     use std::env;
-
-    #[test]
-    fn test_hicolor() {
-        let _icon_theme = IconTheme::from_name("hicolor").unwrap();
-    }
 
     #[test]
     fn test_fetch_user_dir() {
