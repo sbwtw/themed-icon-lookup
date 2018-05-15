@@ -44,6 +44,10 @@ pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32)
         ret_if_found!(parent_theme.lookup_icon(icon, size, scale));
     }
 
+    // find in hicolor
+    let hicolor = IconTheme::from_name("hicolor").ok()?;
+    ret_if_found!(hicolor.lookup_icon(icon, size, scale));
+
     // fallback
     ret_if_found!(theme.lookup_fallback_icon(icon, size, scale));
 
@@ -53,6 +57,9 @@ pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32)
 
         ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
     }
+
+    // fallback in hicolor
+    ret_if_found!(hicolor.lookup_fallback_icon(icon, size, scale));
 
     None
 }
@@ -71,7 +78,7 @@ mod test {
 
     #[test]
     fn test_find_icon() {
-        let r = find_icon("edit-clear-locationbar-rtl", 16, 1);
+        let r = find_icon_with_theme_name("Sea", "GammaRay", 96, 1);
         println!("r = {:?}", r);
     }
 }
