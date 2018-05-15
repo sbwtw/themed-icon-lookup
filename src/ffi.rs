@@ -41,5 +41,23 @@ pub extern "C" fn find_icon(icon: *const c_char, size: i32, scale: i32) -> *cons
 
 #[no_mangle]
 pub extern "C" fn free_cstring(cstring: *mut c_char) {
-    unsafe { CString::from_raw(cstring); }
+    if !cstring.is_null() {
+        unsafe { CString::from_raw(cstring); }
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use ffi::*;
+
+    use std::ptr;
+
+    #[test]
+    fn test_null_ptr() {
+        let nullptr: *mut i8 = ptr::null_mut();
+
+        // should't be crashed
+        free_cstring(nullptr);
+    }
 }
