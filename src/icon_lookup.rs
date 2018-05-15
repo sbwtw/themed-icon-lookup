@@ -13,6 +13,10 @@ macro_rules! ret_if_found {
     };
 }
 
+lazy_static! {
+    static ref HICOLOR_THEME: Option<IconTheme> = IconTheme::from_name("hicolor").ok();
+}
+
 fn get_default_icon_theme_name() -> Option<String> {
     let result = Command::new("gsettings")
                     .arg("get")
@@ -32,34 +36,41 @@ fn get_default_icon_theme_name() -> Option<String> {
 pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32) -> Option<PathBuf>
   where T: AsRef<str>, I: AsRef<str> {
 
-    let theme = IconTheme::from_name(theme.as_ref()).ok()?;
+    let theme = IconTheme::from_name(theme.as_ref()).ok();
     let icon = &icon.into();
 
-    ret_if_found!(theme.lookup_icon(icon, size, scale));
+    if let Some(ref theme) = theme {
+        ret_if_found!(theme.lookup_icon(icon, size, scale));
 
-    // find in parents
-    for parent in theme.parents() {
-        let parent_theme = IconTheme::from_name(parent).ok()?;
-
-        ret_if_found!(parent_theme.lookup_icon(icon, size, scale));
+        // find in parents
+        for parent in theme.parents() {
+            if let Ok(parent_theme) = IconTheme::from_name(parent) {
+                ret_if_found!(parent_theme.lookup_icon(icon, size, scale));
+            }
+        }
     }
 
     // find in hicolor
-    let hicolor = IconTheme::from_name("hicolor").ok()?;
-    ret_if_found!(hicolor.lookup_icon(icon, size, scale));
+    if let Some(ref hicolor) = *HICOLOR_THEME {
+        ret_if_found!(hicolor.lookup_icon(icon, size, scale));
+    }
 
     // fallback
-    ret_if_found!(theme.lookup_fallback_icon(icon, size, scale));
+    if let Some(ref theme) = theme {
+        ret_if_found!(theme.lookup_fallback_icon(icon, size, scale));
 
-    // fallback in parents
-    for parent in theme.parents() {
-        let parent_theme = IconTheme::from_name(parent).ok()?;
+        // fallback in parents
+        for parent in theme.parents() {
+            let parent_theme = IconTheme::from_name(parent).ok()?;
 
-        ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
+            ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
+        }
     }
 
     // fallback in hicolor
-    ret_if_found!(hicolor.lookup_fallback_icon(icon, size, scale));
+    if let Some(ref hicolor) = *HICOLOR_THEME {
+        ret_if_found!(hicolor.lookup_fallback_icon(icon, size, scale));
+    }
 
     None
 }
@@ -88,5 +99,14 @@ mod test {
                     find_icon_with_theme_name("themed", "deepin-deb-installer", 96, 1));
         assert_eq!(Some("tests/icons/themed/apps/scalable/deepin-deb-installer.svg".into()),
                     find_icon_with_theme_name("themed", "deepin-deb-installer", 24, 1));
+
+        println!("{:?}", find_icon_with_theme_name("themed", "TestAppIcon", 48, 1));
+    }
+
+    #[test]
+    fn test_invalid_theme_name() {
+        // should be fallback to hicolor
+        assert_eq!(Some("tests/icons/hicolor/apps/16/TestAppIcon.png".into()),
+                    find_icon_with_theme_name("InvalidThemeName", "TestAppIcon", 16, 1));
     }
 }
