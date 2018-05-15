@@ -3,7 +3,7 @@ Name=Hicolor
 Comment=Fallback icon theme
 Hidden=true
 
-Directories=apps/16,apps/48,apps/48@2
+Directories=apps/16,apps/48,apps/48@2,apps/scalable
 
 [apps/16]
 Size=16
@@ -20,3 +20,10 @@ Size=48
 Scale=2
 Context=Actions
 Type=Threshold
+
+[apps/scalable]
+Size=256
+MinSize=1
+MaxSize=256
+Context=Actions
+Type=Scalable

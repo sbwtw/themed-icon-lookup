@@ -133,7 +133,7 @@ impl IconDirectory {
         return match self.type_ {
             DirectoryType::Fixed => self.size == size,
             DirectoryType::Scalable(min, max) => min <= size && max >= size,
-            DirectoryType::Threshold(threshold) => size - threshold <= size && size + threshold >= size,
+            DirectoryType::Threshold(threshold) => (self.size - size).abs() <= threshold,
         };
     }
 
@@ -304,5 +304,17 @@ mod test {
         while let Some(icon_name) = icon_name.fallback() {
             println!("{:?}", icon_name);
         }
+    }
+
+    #[test]
+    fn test_lookup_threshold() {
+        let theme = IconTheme::from_name("hicolor").unwrap();
+
+        assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 46, 1),
+                    Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
+        assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 50, 1),
+                    Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
+        assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 51, 1),
+                    Some("tests/icons/hicolor/apps/scalable/TestAppIcon.svg".into()));
     }
 }
