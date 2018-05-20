@@ -15,6 +15,7 @@ macro_rules! ret_if_found {
 
 lazy_static! {
     static ref HICOLOR_THEME: Option<IconTheme> = IconTheme::from_name("hicolor").ok();
+    static ref DEFAULT_THEME_NAME: String = get_default_icon_theme_name().unwrap_or("hicolor".to_string());
 }
 
 fn get_default_icon_theme_name() -> Option<String> {
@@ -61,9 +62,9 @@ pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32)
 
         // fallback in parents
         for parent in theme.parents() {
-            let parent_theme = IconTheme::from_name(parent).ok()?;
-
-            ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
+            if let Ok(parent_theme) = IconTheme::from_name(parent) {
+                ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
+            }
         }
     }
 
@@ -78,9 +79,7 @@ pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32)
 pub fn find_icon<I>(icon: I, size: i32, scale: i32) -> Option<PathBuf>
   where I: AsRef<str> {
 
-    let default_theme = get_default_icon_theme_name().unwrap_or("hicolor".to_string());
-
-    find_icon_with_theme_name(default_theme, icon, size, scale)
+    find_icon_with_theme_name(&*DEFAULT_THEME_NAME, icon, size, scale)
 }
 
 #[cfg(test)]

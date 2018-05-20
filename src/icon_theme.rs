@@ -189,6 +189,19 @@ impl IconTheme {
 
     pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
 
+        Self::from_system_path(name)
+    }
+
+    pub fn from_user_path<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
+
+       match &*USER_ICON_DIR {
+            Some(user_dir) => Self::from_dir(Path::new(user_dir).join(name.as_ref())),
+            None => Err(()),
+        }
+    }
+
+    pub fn from_system_path<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
+
         let p = if cfg!(test) {
             Path::new("tests/icons").join(name.as_ref())
         } else {
