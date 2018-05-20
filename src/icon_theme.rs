@@ -45,17 +45,12 @@ impl IconName {
     }
 }
 
-#[derive(Debug)]
-struct IconThemeLocation {
-    base_dir: PathBuf,
-    sub_dirs: Vec<IconDirectory>,
-}
-
 #[derive(Debug, Default)]
 pub struct IconTheme {
     name: String,
     inherits: Vec<String>,
-    locations: Vec<IconThemeLocation>,
+    base_dirs: Vec<PathBuf>,
+    sub_dirs: Vec<IconDirectory>,
 }
 
 #[derive(Debug)]
@@ -165,11 +160,9 @@ impl IconDirectory {
 
 impl IconTheme {
     pub fn from_dir<T: AsRef<Path>>(path: T) -> Result<IconTheme, ()> {
-        let f = Ini::load_from_file(path.as_ref().join("index").with_extension("theme"));
-        if f.is_err() { return Err(()); }
-        let f = f.unwrap();
+        let f = Ini::load_from_file(path.as_ref().join("index").with_extension("theme")).map_err(|_| ())?;
 
-        let mut r = Self { ..Default::default() };
+        let mut r = Self { base_dirs: vec![path.as_ref().into()], ..Default::default() };
         let mut directories = vec![];
 
         if let Some(properties) = f.section(Some("Icon Theme")) {
@@ -185,13 +178,18 @@ impl IconTheme {
             }
         };
 
-        let dirs = directories.iter().map(
+        r.sub_dirs = directories.iter().map(
             |x| IconDirectory::with_settings(&f, x)
         ).collect();
 
-        r.locations.push(IconThemeLocation{ base_dir: path.as_ref().into(), sub_dirs: dirs });
-
         Ok(r)
+    }
+
+    pub fn append_lookup_dir<T: AsRef<Path>>(mut self, path: T) -> Self {
+
+        self.base_dirs.push(path.as_ref().into());
+
+        self
     }
 
     pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
@@ -225,15 +223,14 @@ impl IconTheme {
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
         // find in normal dirs
-        for location in &self.locations {
-            for subdir in &location.sub_dirs {
-                if !subdir.matches_size(size, scale) { continue; }
+        for subdir in &self.sub_dirs {
+            if !subdir.matches_size(size, scale) { continue; }
 
+            for basedir in &self.base_dirs {
                 for ext in EXTS {
-                    let p = location.base_dir
-                                .join(&subdir.name)
-                                .join(&name.name())
-                                .with_extension(&ext);
+                    let p = basedir.join(&subdir.name)
+                                   .join(&name.name())
+                                   .with_extension(&ext);
 
                     if p.is_file() {
                         return Some(p);
@@ -246,16 +243,15 @@ impl IconTheme {
         let mut minimal_distance = i32::max_value();
         let mut closest_file: Option<PathBuf> = None;
 
-        'location: for location in &self.locations {
-            'dir: for subdir in &location.sub_dirs {
-                let distance = subdir.size_distance(size, scale);
-                if distance >= minimal_distance { continue; }
+        'dir: for subdir in &self.sub_dirs {
+            let distance = subdir.size_distance(size, scale);
+            if distance >= minimal_distance { continue; }
 
+            'location: for basedir in &self.base_dirs {
                 'ext: for ext in EXTS {
-                    let p = location.base_dir
-                                .join(&subdir.name)
-                                .join(&name.name())
-                                .with_extension(&ext);
+                    let p = basedir.join(&subdir.name)
+                                   .join(&name.name())
+                                   .with_extension(&ext);
 
                     if p.is_file() {
                         closest_file = Some(p);
@@ -282,13 +278,12 @@ impl IconTheme {
         // fallback without any size/scale match
         let mut fallback = name.clone();
         while let Some(fallback) = fallback.fallback() {
-            for location in &self.locations {
-                for subdir in &location.sub_dirs {
+            for basedir in &self.base_dirs {
+                for subdir in &self.sub_dirs {
                     for ext in EXTS {
-                        let p = location.base_dir
-                                    .join(&subdir.name)
-                                    .join(&fallback.name())
-                                    .with_extension(&ext);
+                        let p = basedir.join(&subdir.name)
+                                       .join(&fallback.name())
+                                       .with_extension(&ext);
 
                         if p.is_file() {
                             return Some(p);
