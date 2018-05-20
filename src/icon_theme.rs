@@ -45,12 +45,17 @@ impl IconName {
     }
 }
 
+#[derive(Debug)]
+struct IconThemeLocation {
+    base_dir: PathBuf,
+    sub_dirs: Vec<IconDirectory>,
+}
+
 #[derive(Debug, Default)]
 pub struct IconTheme {
     name: String,
-    basedir: PathBuf,
     inherits: Vec<String>,
-    directories: Vec<IconDirectory>,
+    locations: Vec<IconThemeLocation>,
 }
 
 #[derive(Debug)]
@@ -164,7 +169,7 @@ impl IconTheme {
         if f.is_err() { return Err(()); }
         let f = f.unwrap();
 
-        let mut r = Self { basedir: path.as_ref().to_path_buf(), ..Default::default() };
+        let mut r = Self { ..Default::default() };
         let mut directories = vec![];
 
         if let Some(properties) = f.section(Some("Icon Theme")) {
@@ -180,9 +185,11 @@ impl IconTheme {
             }
         };
 
-        r.directories = directories.iter().map(
+        let dirs = directories.iter().map(
             |x| IconDirectory::with_settings(&f, x)
         ).collect();
+
+        r.locations.push(IconThemeLocation{ base_dir: path.as_ref().into(), sub_dirs: dirs });
 
         Ok(r)
     }
@@ -217,19 +224,20 @@ impl IconTheme {
 
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
-        let path = &self.basedir;
-
         // find in normal dirs
-        for subdir in &self.directories {
-            if !subdir.matches_size(size, scale) { continue; }
+        for location in &self.locations {
+            for subdir in &location.sub_dirs {
+                if !subdir.matches_size(size, scale) { continue; }
 
-            for ext in EXTS {
-                let p = path.join(&subdir.name)
-                            .join(&name.name())
-                            .with_extension(&ext);
+                for ext in EXTS {
+                    let p = location.base_dir
+                                .join(&subdir.name)
+                                .join(&name.name())
+                                .with_extension(&ext);
 
-                if p.is_file() {
-                    return Some(p);
+                    if p.is_file() {
+                        return Some(p);
+                    }
                 }
             }
         }
@@ -238,20 +246,23 @@ impl IconTheme {
         let mut minimal_distance = i32::max_value();
         let mut closest_file: Option<PathBuf> = None;
 
-        'dir: for subdir in &self.directories {
-            let distance = subdir.size_distance(size, scale);
-            if distance >= minimal_distance { continue; }
+        'location: for location in &self.locations {
+            'dir: for subdir in &location.sub_dirs {
+                let distance = subdir.size_distance(size, scale);
+                if distance >= minimal_distance { continue; }
 
-            'ext: for ext in EXTS {
-                let p = path.join(&subdir.name)
-                            .join(&name.name())
-                            .with_extension(&ext);
+                'ext: for ext in EXTS {
+                    let p = location.base_dir
+                                .join(&subdir.name)
+                                .join(&name.name())
+                                .with_extension(&ext);
 
-                if p.is_file() {
-                    closest_file = Some(p);
-                    minimal_distance =  distance;
+                    if p.is_file() {
+                        closest_file = Some(p);
+                        minimal_distance =  distance;
 
-                    continue 'dir;
+                        continue 'dir;
+                    }
                 }
             }
         }
@@ -269,17 +280,19 @@ impl IconTheme {
         }
 
         // fallback without any size/scale match
-        let path = &self.basedir;
         let mut fallback = name.clone();
         while let Some(fallback) = fallback.fallback() {
-            for subdir in &self.directories {
-                for ext in EXTS {
-                    let p = path.join(&subdir.name)
-                                .join(&fallback.name())
-                                .with_extension(&ext);
+            for location in &self.locations {
+                for subdir in &location.sub_dirs {
+                    for ext in EXTS {
+                        let p = location.base_dir
+                                    .join(&subdir.name)
+                                    .join(&fallback.name())
+                                    .with_extension(&ext);
 
-                    if p.is_file() {
-                        return Some(p);
+                        if p.is_file() {
+                            return Some(p);
+                        }
                     }
                 }
             }
