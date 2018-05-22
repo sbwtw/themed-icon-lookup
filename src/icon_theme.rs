@@ -185,35 +185,36 @@ impl IconTheme {
         Ok(r)
     }
 
-    pub fn append_lookup_dir<T: AsRef<Path>>(mut self, path: T) -> Self {
-
-        self.base_dirs.push(path.as_ref().into());
-
-        self
-    }
-
     pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
 
-        Self::from_system_path(name)
-    }
-
-    pub fn from_user_path<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
-
-       match &*USER_ICON_DIR {
-            Some(user_dir) => Self::from_dir(Path::new(user_dir).join(name.as_ref())),
-            None => Err(()),
-        }
-    }
-
-    pub fn from_system_path<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
-
-        let p = if cfg!(test) {
+        let user_dir = USER_ICON_DIR.as_ref().map(|x| x.join(name.as_ref()));
+        let system_dir = if cfg!(test) {
             Path::new("tests/icons").join(name.as_ref())
         } else {
             Path::new("/usr/share/icons").join(name.as_ref())
         };
 
-        Self::from_dir(p)
+        let theme_spec = user_dir.as_ref().map(|x| x.join("index").with_extension("theme").is_file());
+        if let Some(true) = theme_spec {
+            let mut theme = Self::from_dir(user_dir.unwrap())?;
+            if system_dir.is_dir() {
+                theme.append_lookup_dir(system_dir);
+            }
+
+            Ok(theme)
+        } else {
+            let mut theme = Self::from_dir(system_dir)?;
+            if let Some(true) = user_dir.as_ref().map(|x| x.is_dir()) {
+                theme.append_lookup_dir(user_dir.unwrap());
+            }
+
+            Ok(theme)
+        }
+    }
+
+    pub fn append_lookup_dir<T: AsRef<Path>>(&mut self, path: T) {
+
+        self.base_dirs.push(path.as_ref().into());
     }
 
     pub fn parents(&self) -> &Vec<String> {
