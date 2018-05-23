@@ -61,7 +61,7 @@ impl IconName {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct IconTheme {
     name: String,
     inherits: Vec<String>,
@@ -92,6 +92,21 @@ impl Default for IconDirectory {
             type_: DirectoryType::Threshold(2),
             size: 0,
             scale: 1,
+        }
+    }
+}
+
+impl Default for IconTheme {
+    fn default() -> Self {
+
+        let extra_dirs = if cfg!(test) { vec![] } else { vec!["/usr/share/pixmaps".into()] };
+
+        Self {
+            name: String::new(),
+            inherits: vec![],
+            extra_dirs,
+            base_dirs: vec![],
+            sub_dirs: vec![],
         }
     }
 }
