@@ -8,14 +8,30 @@ use std::env;
 static EXTS: &'static [&'static str] = &["png", "svg"];
 
 lazy_static!{
-    static ref USER_ICON_DIR: Option<PathBuf> = get_user_icon_dir();
+    static ref USER_ICON_DIR: Vec<PathBuf> = get_user_icon_dir();
 }
 
-fn get_user_icon_dir() -> Option<PathBuf> {
-    env::var("XDG_DATA_HOME")
-        .or(env::var("HOME").map(|x| format!("{}/.local/share", x)))
-        .map(|x| x.into())
-        .ok()
+fn get_user_icon_dir() -> Vec<PathBuf> {
+
+    if let Ok(dirs) = env::var("XDG_DATA_DIRS") {
+        return dirs.split(':').map(|x| Into::<PathBuf>::into(x).join("icons")).filter(|x| x.is_dir()).collect()
+    }
+
+    if let Ok(dir) = env::var("XDG_DATA_HOME") {
+        let dir: PathBuf = format!("{}/icons", dir).into();
+        if dir.is_dir() {
+            return vec![dir];
+        }
+    }
+
+    if let Ok(dir) = env::var("HOME") {
+        let dir: PathBuf = format!("{}/.local/share/icons", dir).into();
+        if dir.is_dir() {
+            return vec![dir];
+        }
+    }
+
+    vec![]
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +65,7 @@ impl IconName {
 pub struct IconTheme {
     name: String,
     inherits: Vec<String>,
+    extra_dirs: Vec<PathBuf>,
     base_dirs: Vec<PathBuf>,
     sub_dirs: Vec<IconDirectory>,
 }
@@ -187,34 +204,65 @@ impl IconTheme {
 
     pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
 
-        let user_dir = USER_ICON_DIR.as_ref().map(|x| x.join(name.as_ref()));
         let system_dir = if cfg!(test) {
             Path::new("tests/icons").join(name.as_ref())
         } else {
             Path::new("/usr/share/icons").join(name.as_ref())
         };
 
-        let theme_spec = user_dir.as_ref().map(|x| x.join("index").with_extension("theme").is_file());
-        if let Some(true) = theme_spec {
-            let mut theme = Self::from_dir(user_dir.unwrap())?;
-            if system_dir.is_dir() {
-                theme.append_lookup_dir(system_dir);
-            }
+        let user_dirs: Vec<PathBuf> =
+            if cfg!(test) {
+                  get_user_icon_dir()
+                    .iter()
+                    .map(|x| x.join(name.as_ref()))
+                    .filter(|x| x.is_dir())
+                    .collect()
+            } else {
+                  USER_ICON_DIR
+                    .iter()
+                    .map(|x| x.join(name.as_ref()))
+                    .filter(|x| x.is_dir())
+                    .collect()
+            };
 
-            Ok(theme)
+        // construct new theme object
+        let mut theme = if user_dirs.is_empty() {
+            Self::from_dir(&system_dir)?
         } else {
-            let mut theme = Self::from_dir(system_dir)?;
-            if let Some(true) = user_dir.as_ref().map(|x| x.is_dir()) {
-                theme.append_lookup_dir(user_dir.unwrap());
+            if let Some(dir) = user_dirs
+                                .iter()
+                                .filter(|x| x.join("index").with_extension("theme").is_file())
+                                .next() {
+                Self::from_dir(dir)?
+            } else {
+                return Err(());
             }
+        };
 
-            Ok(theme)
+        // append user-side dirs
+        for dir in user_dirs.iter().filter(|x| x.is_dir()) {
+            println!("{:?}", dir);
+            theme.append_base_dir(dir);
+        }
+
+        // append system-side dir
+        theme.append_base_dir(&system_dir);
+
+        Ok(theme)
+    }
+
+    fn append_base_dir<T: AsRef<Path>>(&mut self, path: T) {
+
+        let p = path.as_ref().into();
+
+        if !self.base_dirs.contains(&p) {
+            self.base_dirs.push(p);
         }
     }
 
-    pub fn append_lookup_dir<T: AsRef<Path>>(&mut self, path: T) {
+    pub fn append_extra_lookup_dir<T: AsRef<Path>>(&mut self, path: T) {
 
-        self.base_dirs.push(path.as_ref().into());
+        self.extra_dirs.push(path.as_ref().into());
     }
 
     pub fn parents(&self) -> &Vec<String> {
@@ -264,7 +312,20 @@ impl IconTheme {
             }
         }
 
-        closest_file
+        if closest_file.is_some() { return closest_file; }
+
+        // test in extra dirs
+        for extra_dir in self.extra_dirs.iter().filter(|x| x.is_dir()) {
+            for ext in EXTS {
+                let p = extra_dir.join(&name.name()).with_extension(&ext);
+                if p.is_file() {
+                    return Some(p);
+                }
+            }
+        }
+
+        // not found
+        None
     }
 
     pub fn lookup_fallback_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
@@ -308,18 +369,30 @@ mod test {
     fn test_fetch_user_dir() {
         env::remove_var("HOME");
         env::remove_var("XDG_DATA_HOME");
+        env::remove_var("XDG_DATA_DIRS");
 
-        assert_eq!(get_user_icon_dir(), None);
+        assert!(get_user_icon_dir().is_empty());
 
-        env::set_var("HOME", "fake_home");
-        assert_eq!(get_user_icon_dir(), Some("fake_home/.local/share".into()));
+        env::set_var("HOME", "tests/fake_home");
+        let dirs: Vec<PathBuf> = vec![ "tests/fake_home/.local/share/icons".into() ];
+        assert_eq!(get_user_icon_dir(), dirs);
 
-        env::set_var("XDG_DATA_HOME", "fake_xdg_home/.local/share");
-        assert_eq!(get_user_icon_dir(), Some("fake_xdg_home/.local/share".into()));
+        env::set_var("XDG_DATA_HOME", "tests/fake_home/.local/share");
+        assert_eq!(get_user_icon_dir(), dirs);
+
+        env::remove_var("HOME");
+        assert_eq!(get_user_icon_dir(), dirs);
+
+        env::set_var("XDG_DATA_DIRS", "tests:tests/fake_home/.local/share");
+        let dirs: Vec<PathBuf> = vec![ "tests/icons".into(),
+                                       "tests/fake_home/.local/share/icons".into() ];
+        assert_eq!(get_user_icon_dir(), dirs);
     }
 
     #[test]
     fn test_icon_name_fallback() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
         let mut icon_name = IconName::from("some-icon-name.svg");
 
         println!("{:?}", icon_name);
@@ -329,7 +402,29 @@ mod test {
     }
 
     #[test]
+    fn test_app_icon_lookup() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
+        let theme = IconTheme::from_name("themed").unwrap();
+
+        assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
+                    Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
+    }
+
+    #[test]
+    fn test_in_another_base_dir() {
+        env::set_var("XDG_DATA_DIRS", "tests:tests/fake_home/.local/share");
+
+        let theme = IconTheme::from_name("themed").unwrap();
+
+        assert_eq!(theme.lookup_icon(&"just-in-another-base".into(), 16, 1),
+                    Some("tests/fake_home/.local/share/icons/themed/apps/16/just-in-another-base.png".into()));
+    }
+
+    #[test]
     fn test_lookup_threshold() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
         let theme = IconTheme::from_name("hicolor").unwrap();
 
         assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 46, 1),

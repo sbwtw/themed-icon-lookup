@@ -86,8 +86,12 @@ pub fn find_icon<I>(icon: I, size: i32, scale: i32) -> Option<PathBuf>
 mod test {
     use icon_lookup::*;
 
+    use std::env;
+
     #[test]
     fn test_find_fixed() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
         assert_eq!(Some("tests/icons/themed/apps/16/deepin-deb-installer.svg".into()),
                     find_icon_with_theme_name("themed", "deepin-deb-installer", 16, 1));
         assert_eq!(Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()),
@@ -98,14 +102,29 @@ mod test {
                     find_icon_with_theme_name("themed", "deepin-deb-installer", 96, 1));
         assert_eq!(Some("tests/icons/themed/apps/scalable/deepin-deb-installer.svg".into()),
                     find_icon_with_theme_name("themed", "deepin-deb-installer", 24, 1));
-
-        println!("{:?}", find_icon_with_theme_name("themed", "TestAppIcon", 48, 1));
     }
 
     #[test]
     fn test_invalid_theme_name() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
         // should be fallback to hicolor
         assert_eq!(Some("tests/icons/hicolor/apps/16/TestAppIcon.png".into()),
                     find_icon_with_theme_name("InvalidThemeName", "TestAppIcon", 16, 1));
+    }
+
+    #[test]
+    fn test_extra_lookup_dir() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
+        let mut theme = IconTheme::from_name("hicolor").unwrap();
+
+        // in default, can't find any match
+        assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1), None);
+
+        // add extra search dir, we can found it.
+        theme.append_extra_lookup_dir("tests/extra-icons");
+        assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1),
+                    Some("tests/extra-icons/ExtraIcon.svg".into()));
     }
 }
