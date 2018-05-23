@@ -219,23 +219,24 @@ impl IconTheme {
 
     pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
 
-        let system_dir = if cfg!(test) {
-            Path::new("tests/icons").join(name.as_ref())
+        let system_dir: PathBuf = if cfg!(test) {
+            format!("tests/icons/{}", name.as_ref()).into()
         } else {
-            Path::new("/usr/share/icons").join(name.as_ref())
+            format!("/usr/share/icons/{}", name.as_ref()).into()
         };
 
         let user_dirs: Vec<PathBuf> =
             if cfg!(test) {
                   get_user_icon_dir()
                     .iter()
-                    .map(|x| x.join(name.as_ref()))
-                    .filter(|x| x.is_dir())
+                    .map(|x| format!("{}/{}", x.display(), name.as_ref()).into())
+                    .filter(|x: &PathBuf| x.is_dir())
                     .collect()
             } else {
                   USER_ICON_DIR
                     .iter()
-                    .map(|x| x.join(name.as_ref()))
+                    .map(|x| format!("{}/{}", x.display(), name.as_ref()).into())
+                    .filter(|x: &PathBuf| x.is_dir())
                     .filter(|x| x.is_dir())
                     .collect()
             };
@@ -256,7 +257,6 @@ impl IconTheme {
 
         // append user-side dirs
         for dir in user_dirs.iter().filter(|x| x.is_dir()) {
-            println!("{:?}", dir);
             theme.append_base_dir(dir);
         }
 
@@ -292,9 +292,7 @@ impl IconTheme {
 
             for basedir in &self.base_dirs {
                 for ext in EXTS {
-                    let p = basedir.join(&subdir.name)
-                                   .join(&name.name())
-                                   .with_extension(&ext);
+                    let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name.name(), ext).into();
 
                     if p.is_file() {
                         return Some(p);
@@ -313,9 +311,7 @@ impl IconTheme {
 
             'location: for basedir in &self.base_dirs {
                 'ext: for ext in EXTS {
-                    let p = basedir.join(&subdir.name)
-                                   .join(&name.name())
-                                   .with_extension(&ext);
+                    let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name.name(), ext).into();
 
                     if p.is_file() {
                         closest_file = Some(p);
@@ -332,7 +328,8 @@ impl IconTheme {
         // test in extra dirs
         for extra_dir in self.extra_dirs.iter().filter(|x| x.is_dir()) {
             for ext in EXTS {
-                let p = extra_dir.join(&name.name()).with_extension(&ext);
+                let p: PathBuf = format!("{}/{}.{}", extra_dir.display(), name.name(), ext).into();
+
                 if p.is_file() {
                     return Some(p);
                 }
@@ -358,9 +355,7 @@ impl IconTheme {
             for basedir in &self.base_dirs {
                 for subdir in &self.sub_dirs {
                     for ext in EXTS {
-                        let p = basedir.join(&subdir.name)
-                                       .join(&fallback.name())
-                                       .with_extension(&ext);
+                        let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, fallback.name(), ext).into();
 
                         if p.is_file() {
                             return Some(p);
@@ -448,5 +443,15 @@ mod test {
                     Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
         assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 51, 1),
                     Some("tests/icons/hicolor/apps/scalable/TestAppIcon.svg".into()));
+    }
+
+    #[test]
+    fn test_name_with_dot() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
+        let theme = IconTheme::from_name("themed").unwrap();
+
+        assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 16, 1),
+                    Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
     }
 }
