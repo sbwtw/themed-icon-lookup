@@ -112,19 +112,4 @@ mod test {
         assert_eq!(Some("tests/icons/hicolor/apps/16/TestAppIcon.png".into()),
                     find_icon_with_theme_name("InvalidThemeName", "TestAppIcon", 16, 1));
     }
-
-    #[test]
-    fn test_extra_lookup_dir() {
-        env::set_var("XDG_DATA_DIRS", "tests");
-
-        let mut theme = IconTheme::from_name("hicolor").unwrap();
-
-        // in default, can't find any match
-        assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1), None);
-
-        // add extra search dir, we can found it.
-        theme.append_extra_lookup_dir("tests/extra-icons");
-        assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1),
-                    Some("tests/extra-icons/ExtraIcon.svg".into()));
-    }
 }

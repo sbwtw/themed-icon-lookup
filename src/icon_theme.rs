@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use std::convert::From;
 use std::env;
 
-static EXTS: &'static [&'static str] = &["png", "svg"];
+static BASIC_EXTS: &'static [&'static str] = &["png", "svg"];
+static EXTRA_EXTS: &'static [&'static str] = &["png", "svg", "xpm"];
 
 lazy_static!{
     static ref USER_ICON_DIR: Vec<PathBuf> = get_user_icon_dir();
@@ -14,7 +15,10 @@ lazy_static!{
 fn get_user_icon_dir() -> Vec<PathBuf> {
 
     if let Ok(dirs) = env::var("XDG_DATA_DIRS") {
-        return dirs.split(':').map(|x| Into::<PathBuf>::into(x).join("icons")).filter(|x| x.is_dir()).collect()
+        return dirs.split(':')
+                   .map(|x| Into::<PathBuf>::into(x).join("icons"))
+                   .filter(|x| x.is_dir())
+                   .collect()
     }
 
     if let Ok(dir) = env::var("XDG_DATA_HOME") {
@@ -291,7 +295,7 @@ impl IconTheme {
             if !subdir.matches_size(size, scale) { continue; }
 
             for basedir in &self.base_dirs {
-                for ext in EXTS {
+                for ext in BASIC_EXTS {
                     let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name.name(), ext).into();
 
                     if p.is_file() {
@@ -310,7 +314,7 @@ impl IconTheme {
             if distance >= minimal_distance { continue; }
 
             'location: for basedir in &self.base_dirs {
-                'ext: for ext in EXTS {
+                'ext: for ext in BASIC_EXTS {
                     let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name.name(), ext).into();
 
                     if p.is_file() {
@@ -327,7 +331,7 @@ impl IconTheme {
 
         // test in extra dirs
         for extra_dir in self.extra_dirs.iter().filter(|x| x.is_dir()) {
-            for ext in EXTS {
+            for ext in EXTRA_EXTS {
                 let p: PathBuf = format!("{}/{}.{}", extra_dir.display(), name.name(), ext).into();
 
                 if p.is_file() {
@@ -354,7 +358,7 @@ impl IconTheme {
         while let Some(fallback) = fallback.fallback() {
             for basedir in &self.base_dirs {
                 for subdir in &self.sub_dirs {
-                    for ext in EXTS {
+                    for ext in BASIC_EXTS {
                         let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, fallback.name(), ext).into();
 
                         if p.is_file() {
@@ -453,5 +457,23 @@ mod test {
 
         assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 16, 1),
                     Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
+    }
+
+    #[test]
+    fn test_extra_lookup_dir() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
+        let mut theme = IconTheme::from_name("hicolor").unwrap();
+
+        // in default, can't find any match
+        assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1), None);
+
+        // add extra search dir, we can found it.
+        theme.append_extra_lookup_dir("tests/extra-icons");
+        assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1),
+                    Some("tests/extra-icons/ExtraIcon.svg".into()));
+
+        // assert_eq!(theme.lookup_icon(&"extraxpm".into(), 48, 1),
+                    // Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
     }
 }
