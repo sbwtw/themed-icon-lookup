@@ -1,9 +1,11 @@
 
 use ini::Ini;
+use rayon::prelude::*;
 
 use std::path::{Path, PathBuf};
 use std::convert::From;
 use std::env;
+use std::sync::mpsc::channel;
 
 static BASIC_EXTS: &'static [&'static str] = &["png", "svg"];
 static EXTRA_EXTS: &'static [&'static str] = &["png", "svg", "xpm"];
@@ -290,19 +292,20 @@ impl IconTheme {
 
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
+        let ref name = name.name();
+
         // find in normal dirs
         for subdir in &self.sub_dirs {
             if !subdir.matches_size(size, scale) { continue; }
 
-            for basedir in &self.base_dirs {
-                for ext in BASIC_EXTS {
-                    let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name.name(), ext).into();
+            let r = self.base_dirs.par_iter()
+                .map(|x| PathBuf::from(format!("{}/{}", x.display(), subdir.name)))
+                .filter(|x| x.is_dir())
+                .flat_map(|x| BASIC_EXTS.par_iter()
+                                .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), name, ext).into()))
+                .find_any(|x: &PathBuf| x.is_file());
 
-                    if p.is_file() {
-                        return Some(p);
-                    }
-                }
-            }
+            if r.is_some() { return r; }
         }
 
         // test closest file
@@ -315,7 +318,7 @@ impl IconTheme {
 
             'location: for basedir in &self.base_dirs {
                 'ext: for ext in BASIC_EXTS {
-                    let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name.name(), ext).into();
+                    let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, name, ext).into();
 
                     if p.is_file() {
                         closest_file = Some(p);
@@ -332,7 +335,7 @@ impl IconTheme {
         // test in extra dirs
         for extra_dir in self.extra_dirs.iter().filter(|x| x.is_dir()) {
             for ext in EXTRA_EXTS {
-                let p: PathBuf = format!("{}/{}.{}", extra_dir.display(), name.name(), ext).into();
+                let p: PathBuf = format!("{}/{}.{}", extra_dir.display(), name, ext).into();
 
                 if p.is_file() {
                     return Some(p);
@@ -473,6 +476,10 @@ mod test {
         assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1),
                     Some("tests/extra-icons/ExtraIcon.svg".into()));
 
+        assert_eq!(theme.lookup_icon(&"extraxpm-with-fallback".into(), 48, 1),
+                    Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
+
+        // fallback
         // assert_eq!(theme.lookup_icon(&"extraxpm".into(), 48, 1),
                     // Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
     }

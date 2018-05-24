@@ -8,6 +8,7 @@
 extern crate ini;
 #[macro_use]
 extern crate lazy_static;
+extern crate rayon;
 
 mod icon_theme;
 pub mod ffi;

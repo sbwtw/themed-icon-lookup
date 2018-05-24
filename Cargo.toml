@@ -12,6 +12,7 @@ crate-type = ["dylib"]
 [dependencies]
 rust-ini = "*"
 lazy_static = "*"
+rayon = "*"
 
 [build-dependencies]
 cbindgen = "*"
