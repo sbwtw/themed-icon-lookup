@@ -1,0 +1,2 @@
+target/release/*.so /usr/lib/til
+*.h /usr/include/til

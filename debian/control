@@ -1,0 +1,16 @@
+Source: til
+Section: utils
+Priority: optional
+Maintainer: sbw <sbw@sbw.so>
+Build-Depends: debhelper (>= 9),
+ pkg-config,
+ cargo
+Standards-Version: 3.9.5
+Homepage: https://github.com/sbwtw/themed-icon-lookup
+
+Package: til
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: Icon lookup
+ Icon lookup.
+
