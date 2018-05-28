@@ -5,7 +5,6 @@ use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::convert::From;
 use std::env;
-use std::sync::mpsc::channel;
 
 static BASIC_EXTS: &'static [&'static str] = &["png", "svg"];
 static EXTRA_EXTS: &'static [&'static str] = &["png", "svg", "xpm"];
@@ -294,19 +293,17 @@ impl IconTheme {
 
         let ref name = name.name();
 
-        // find in normal dirs
-        for subdir in &self.sub_dirs {
-            if !subdir.matches_size(size, scale) { continue; }
+        let r = self.sub_dirs.par_iter()
+            .filter(|sub| sub.matches_size(size, scale))
+            .flat_map(|sub| self.base_dirs.par_iter()
+                            .map_with(sub, |sub, base| format!("{}/{}", base.display(), sub.name)))
+            .map(|p| p.into())
+            .filter(|p: &PathBuf| p.is_dir())
+            .flat_map(|x| BASIC_EXTS.par_iter()
+                            .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), name, ext).into()))
+            .find_first(|x: &PathBuf| x.is_file());
 
-            let r = self.base_dirs.par_iter()
-                .map(|x| PathBuf::from(format!("{}/{}", x.display(), subdir.name)))
-                .filter(|x| x.is_dir())
-                .flat_map(|x| BASIC_EXTS.par_iter()
-                                .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), name, ext).into()))
-                .find_any(|x: &PathBuf| x.is_file());
-
-            if r.is_some() { return r; }
-        }
+        if r.is_some() { return r; }
 
         // test closest file
         let mut minimal_distance = i32::max_value();
