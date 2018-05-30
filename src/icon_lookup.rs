@@ -79,7 +79,7 @@ pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32)
 pub fn find_icon<I>(icon: I, size: i32, scale: i32) -> Option<PathBuf>
   where I: AsRef<str> {
 
-    find_icon_with_theme_name(&*DEFAULT_THEME_NAME, icon, size, scale)
+    lookup!(&*DEFAULT_THEME_NAME, icon, size, scale)
 }
 
 #[cfg(test)]
@@ -92,16 +92,16 @@ mod test {
     fn test_find_fixed() {
         env::set_var("XDG_DATA_DIRS", "tests");
 
-        assert_eq!(Some("tests/icons/themed/apps/16/deepin-deb-installer.svg".into()),
-                    find_icon_with_theme_name("themed", "deepin-deb-installer", 16, 1));
-        assert_eq!(Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()),
-                    find_icon_with_theme_name("themed", "deepin-deb-installer", 32, 1));
-        assert_eq!(Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()),
-                    find_icon_with_theme_name("themed", "deepin-deb-installer", 48, 1));
-        assert_eq!(Some("tests/icons/themed/apps/scalable/deepin-deb-installer.svg".into()),
-                    find_icon_with_theme_name("themed", "deepin-deb-installer", 96, 1));
-        assert_eq!(Some("tests/icons/themed/apps/scalable/deepin-deb-installer.svg".into()),
-                    find_icon_with_theme_name("themed", "deepin-deb-installer", 24, 1));
+        test_lookup!("themed", "deepin-deb-installer", 16, 1
+                    => "tests/icons/themed/apps/16/deepin-deb-installer.svg");
+        test_lookup!("themed", "deepin-deb-installer", 32, 1
+                    => "tests/icons/themed/apps/32/deepin-deb-installer.svg");
+        test_lookup!("themed", "deepin-deb-installer", 48, 1
+                    => "tests/icons/themed/apps/48/deepin-deb-installer.svg");
+        test_lookup!("themed", "deepin-deb-installer", 96, 1
+                    => "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
+        test_lookup!("themed", "deepin-deb-installer", 24, 1
+                    => "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
     }
 
     #[test]

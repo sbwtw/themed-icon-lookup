@@ -460,6 +460,16 @@ mod test {
     }
 
     #[test]
+    fn test_closest_file() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
+        let theme = IconTheme::from_name("themed").unwrap();
+
+        assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
+                    Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
+    }
+
+    #[test]
     fn test_extra_lookup_dir() {
         env::set_var("XDG_DATA_DIRS", "tests");
 

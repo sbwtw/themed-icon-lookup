@@ -10,6 +10,7 @@ path = "src/lib.rs"
 crate-type = ["dylib"]
 
 [dependencies]
+gtk-icon-cache = "*"
 rust-ini = "*"
 lazy_static = "*"
 rayon = "*"
