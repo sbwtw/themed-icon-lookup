@@ -8,6 +8,8 @@
 extern crate ini;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
 extern crate rayon;
 extern crate gtk_icon_cache;
 

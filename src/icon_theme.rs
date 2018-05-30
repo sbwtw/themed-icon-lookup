@@ -1,7 +1,9 @@
 
 use ini::Ini;
 use rayon::prelude::*;
+use gtk_icon_cache::GtkIconCache;
 
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::convert::From;
 use std::env;
@@ -73,6 +75,7 @@ pub struct IconTheme {
     extra_dirs: Vec<PathBuf>,
     base_dirs: Vec<PathBuf>,
     sub_dirs: Vec<IconDirectory>,
+    gtk_cache: Option<GtkIconCache<File>>,
 }
 
 #[derive(Debug)]
@@ -112,6 +115,7 @@ impl Default for IconTheme {
             extra_dirs,
             base_dirs: vec![],
             sub_dirs: vec![],
+            gtk_cache: None,
         }
     }
 }
@@ -152,10 +156,9 @@ impl IconDirectory {
 
                 r.type_ = DirectoryType::Threshold(threshold.unwrap_or(2));
             },
-            Some(unknown) => {
-                println!("==========> {}", unknown);
+            unknown @ _ => {
+                error!("Directory Type is invalid: {:?}", unknown);
             },
-            None => {},
         }
 
         r
@@ -487,6 +490,7 @@ mod test {
                     Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
 
         // fallback
+        // TODO:
         // assert_eq!(theme.lookup_icon(&"extraxpm".into(), 48, 1),
                     // Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
     }

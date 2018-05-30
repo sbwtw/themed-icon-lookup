@@ -14,6 +14,7 @@ gtk-icon-cache = "*"
 rust-ini = "*"
 lazy_static = "*"
 rayon = "*"
+log = "*"
 
 [build-dependencies]
 cbindgen = "*"

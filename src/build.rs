@@ -15,7 +15,7 @@ fn generate_ffi_headers() {
 }
 
 fn main() {
-    if cfg!(not(test)) {
+    if !cfg!(debug_assertions) {
       generate_ffi_headers();
     }
 }
