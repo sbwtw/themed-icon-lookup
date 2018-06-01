@@ -1,4 +1,5 @@
 
+#[cfg(test)]
 macro_rules! test_lookup {
     ($theme: expr, $icon: expr, $size: expr, $scale: expr => $want: expr) => {
         let result = lookup!($theme, $icon, $size, $scale);

@@ -3,7 +3,6 @@ use ini::Ini;
 use rayon::prelude::*;
 use gtk_icon_cache::GtkIconCache;
 
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::convert::From;
 use std::env;
@@ -75,7 +74,7 @@ pub struct IconTheme {
     extra_dirs: Vec<PathBuf>,
     base_dirs: Vec<PathBuf>,
     sub_dirs: Vec<IconDirectory>,
-    gtk_cache: Option<GtkIconCache<File>>,
+    gtk_cache: Option<GtkIconCache>,
 }
 
 #[derive(Debug)]
@@ -198,11 +197,23 @@ impl IconDirectory {
     }
 }
 
+fn search_gtk_cache_in_dir(dir: &Path) -> Option<GtkIconCache> {
+
+    let f = dir.join("icon-theme").with_extension("cache");
+    if !f.is_file() { return None; }
+
+    GtkIconCache::with_file_path(f).ok()
+}
+
 impl IconTheme {
     pub fn from_dir<T: AsRef<Path>>(path: T) -> Result<IconTheme, ()> {
         let f = Ini::load_from_file(path.as_ref().join("index").with_extension("theme")).map_err(|_| ())?;
 
-        let mut r = Self { base_dirs: vec![path.as_ref().into()], ..Default::default() };
+        let mut r = Self {
+            base_dirs: vec![path.as_ref().into()],
+            gtk_cache: search_gtk_cache_in_dir(path.as_ref()),
+            ..Default::default()
+        };
         let mut directories = vec![];
 
         if let Some(properties) = f.section(Some("Icon Theme")) {
@@ -283,6 +294,7 @@ impl IconTheme {
         }
     }
 
+    #[cfg(test)]
     pub fn append_extra_lookup_dir<T: AsRef<Path>>(&mut self, path: T) {
 
         self.extra_dirs.push(path.as_ref().into());
@@ -295,8 +307,16 @@ impl IconTheme {
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
         let ref name = name.name();
+        let ref sub_dirs: Vec<&IconDirectory> = match self.gtk_cache.as_ref().and_then(|x| x.lookup(name)) {
+            Some(dirs) => {
+                self.sub_dirs.par_iter()
+                    .filter(|x| dirs.contains(&&x.name))
+                    .collect()
+            }
+            _ => self.sub_dirs.iter().collect(),
+        };
 
-        let r = self.sub_dirs.par_iter()
+        let r = sub_dirs.par_iter()
             .filter(|sub| sub.matches_size(size, scale))
             .flat_map(|sub| self.base_dirs.par_iter()
                             .map_with(sub, |sub, base| format!("{}/{}", base.display(), sub.name)))
@@ -312,7 +332,7 @@ impl IconTheme {
         let mut minimal_distance = i32::max_value();
         let mut closest_file: Option<PathBuf> = None;
 
-        'dir: for subdir in &self.sub_dirs {
+        'dir: for subdir in sub_dirs.iter() {
             let distance = subdir.size_distance(size, scale);
             if distance >= minimal_distance { continue; }
 
