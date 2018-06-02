@@ -91,6 +91,8 @@ mod test {
 
     #[test]
     fn test_find_fixed() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
         env::set_var("XDG_DATA_DIRS", "tests");
 
         test_lookup!("themed", "deepin-deb-installer", 16, 1
@@ -107,6 +109,8 @@ mod test {
 
     #[test]
     fn test_invalid_theme_name() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
         env::set_var("XDG_DATA_DIRS", "tests");
 
         // should be fallback to hicolor

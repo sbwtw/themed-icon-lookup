@@ -17,5 +17,6 @@ extern crate gtk_icon_cache;
 #[macro_use]
 pub mod macros;
 mod icon_theme;
+mod icon_name;
 pub mod ffi;
 pub mod icon_lookup;

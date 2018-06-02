@@ -1,11 +1,12 @@
 
+use icon_name::IconName;
+
 use ini::Ini;
 use rayon::prelude::*;
 use gtk_icon_cache::GtkIconCache;
 use lru_cache::LruCache;
 
 use std::path::{Path, PathBuf};
-use std::convert::From;
 use std::env;
 use std::sync::Mutex;
 use std::sync::Arc;
@@ -16,6 +17,9 @@ static EXTRA_EXTS: &'static [&'static str] = &["png", "svg", "xpm"];
 lazy_static!{
     static ref USER_ICON_DIR: Vec<PathBuf> = get_user_icon_dir();
     static ref ICON_THEME_CACHE: Mutex<LruCache<String, Arc<IconTheme>>> = Mutex::new(LruCache::new(8));
+
+    #[cfg(test)]
+    pub static ref TEST_ENV_MUTEX: Mutex<()> = Mutex::new(());
 }
 
 fn get_user_icon_dir() -> Vec<PathBuf> {
@@ -42,33 +46,6 @@ fn get_user_icon_dir() -> Vec<PathBuf> {
     }
 
     vec![]
-}
-
-#[derive(Debug, Clone)]
-pub struct IconName {
-    inner_name: String,
-}
-
-impl<T> From<T> for IconName
-  where T: AsRef<str> {
-    fn from(from: T) -> Self {
-        Self { inner_name: from.as_ref().to_string() }
-    }
-}
-
-impl IconName {
-    fn name(&self) -> &str {
-        &self.inner_name
-    }
-
-    fn fallback(&mut self) -> Option<&IconName> {
-        let last_dot = self.inner_name.rfind('.')?;
-        let last_dash = self.inner_name[..last_dot].rfind('-')?;
-
-        let _ = self.inner_name.drain(last_dash..last_dot).count();
-
-        Some(self)
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -422,6 +399,8 @@ mod test {
 
     #[test]
     fn test_fetch_user_dir() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
         env::remove_var("HOME");
         env::remove_var("XDG_DATA_HOME");
         env::remove_var("XDG_DATA_DIRS");
@@ -445,19 +424,9 @@ mod test {
     }
 
     #[test]
-    fn test_icon_name_fallback() {
-        env::set_var("XDG_DATA_DIRS", "tests");
-
-        let mut icon_name = IconName::from("some-icon-name.svg");
-
-        println!("{:?}", icon_name);
-        while let Some(icon_name) = icon_name.fallback() {
-            println!("{:?}", icon_name);
-        }
-    }
-
-    #[test]
     fn test_app_icon_lookup() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
         env::set_var("XDG_DATA_DIRS", "tests");
 
         test_lookup!("themed", "deepin-deb-installer", 32, 1
@@ -466,6 +435,8 @@ mod test {
 
     #[test]
     fn test_in_another_base_dir() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
         env::set_var("XDG_DATA_DIRS", "tests:tests/fake_home/.local/share");
 
         // clear cache
@@ -480,6 +451,8 @@ mod test {
 
     #[test]
     fn test_icon_theme_lru_cache() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
         env::set_var("XDG_DATA_DIRS", "tests");
 
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
@@ -507,10 +480,38 @@ mod test {
     }
 
     #[test]
-    fn test_lookup_threshold() {
+    fn test_should_not_save_invalid_theme() {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+        let capacity = cache.capacity();
+        cache.clear();
+        cache.set_capacity(1);
+        drop(cache);
+
+        assert_eq!(0, ICON_THEME_CACHE.lock().unwrap().len());
+
         env::set_var("XDG_DATA_DIRS", "tests");
 
-        let theme = IconTheme::from_name("hicolor").unwrap();
+        // invalid icon theme should't save
+        test_lookup!("InvalidThemeName", "TestAppIcon", 16, 1
+                    => "tests/icons/hicolor/apps/16/TestAppIcon.png");
+        assert_eq!(0, ICON_THEME_CACHE.lock().unwrap().len());
+
+        // valid icon theme should be saved
+        test_lookup!("hicolor", "TestAppIcon", 16, 1
+                    => "tests/icons/hicolor/apps/16/TestAppIcon.png");
+        assert_eq!(1, ICON_THEME_CACHE.lock().unwrap().len());
+
+        // clear cache
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+        cache.clear();
+        cache.set_capacity(capacity);
+    }
+
+    #[test]
+    fn test_lookup_threshold() {
+        let theme = IconTheme::from_dir("tests/icons/hicolor").unwrap();
 
         assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 46, 1),
                     Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
@@ -522,9 +523,7 @@ mod test {
 
     #[test]
     fn test_name_with_dot() {
-        env::set_var("XDG_DATA_DIRS", "tests");
-
-        let theme = IconTheme::from_name("themed").unwrap();
+        let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
 
         assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 16, 1),
                     Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
@@ -532,9 +531,7 @@ mod test {
 
     #[test]
     fn test_closest_file() {
-        env::set_var("XDG_DATA_DIRS", "tests");
-
-        let theme = IconTheme::from_name("themed").unwrap();
+        let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
 
         assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
                     Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
