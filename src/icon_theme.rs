@@ -14,11 +14,13 @@ use std::sync::Arc;
 static BASIC_EXTS: &'static [&'static str] = &["png", "svg"];
 static EXTRA_EXTS: &'static [&'static str] = &["png", "svg", "xpm"];
 
-lazy_static!{
+lazy_static! {
     static ref USER_ICON_DIR: Vec<PathBuf> = get_user_icon_dir();
     static ref ICON_THEME_CACHE: Mutex<LruCache<String, Arc<IconTheme>>> = Mutex::new(LruCache::new(8));
+}
 
-    #[cfg(test)]
+#[cfg(test)]
+lazy_static! {
     pub static ref TEST_ENV_MUTEX: Mutex<()> = Mutex::new(());
 }
 
