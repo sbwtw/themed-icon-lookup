@@ -2,16 +2,20 @@
 use ini::Ini;
 use rayon::prelude::*;
 use gtk_icon_cache::GtkIconCache;
+use lru_cache::LruCache;
 
 use std::path::{Path, PathBuf};
 use std::convert::From;
 use std::env;
+use std::sync::Mutex;
+use std::sync::Arc;
 
 static BASIC_EXTS: &'static [&'static str] = &["png", "svg"];
 static EXTRA_EXTS: &'static [&'static str] = &["png", "svg", "xpm"];
 
 lazy_static!{
     static ref USER_ICON_DIR: Vec<PathBuf> = get_user_icon_dir();
+    static ref ICON_THEME_CACHE: Mutex<LruCache<String, Arc<IconTheme>>> = Mutex::new(LruCache::new(8));
 }
 
 fn get_user_icon_dir() -> Vec<PathBuf> {
@@ -67,7 +71,7 @@ impl IconName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IconTheme {
     name: String,
     inherits: Vec<String>,
@@ -77,7 +81,7 @@ pub struct IconTheme {
     gtk_cache: Option<GtkIconCache>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IconDirectory {
     name: String,
     type_: DirectoryType,
@@ -85,7 +89,7 @@ pub struct IconDirectory {
     scale: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum DirectoryType {
     Fixed,
     Scalable(i32, i32),
@@ -236,7 +240,20 @@ impl IconTheme {
         Ok(r)
     }
 
-    pub fn from_name<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
+    pub fn from_name<T: AsRef<str>>(name: T) -> Result<Arc<IconTheme>, ()> {
+
+        let name = name.as_ref();
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+
+        if !cache.contains_key(name) {
+            let theme = Self::from_name_interal(name)?;
+            let _ = cache.insert(name.to_string(), Arc::new(theme));
+        }
+
+        Ok(cache.get_mut(name).unwrap().clone())
+    }
+
+    fn from_name_interal<T: AsRef<str>>(name: T) -> Result<IconTheme, ()> {
 
         let system_dir: PathBuf = if cfg!(test) {
             format!("tests/icons/{}", name.as_ref()).into()
@@ -399,6 +416,7 @@ impl IconTheme {
 #[cfg(test)]
 mod test {
     use icon_theme::*;
+    use icon_lookup::*;
 
     use std::env;
 
@@ -442,20 +460,50 @@ mod test {
     fn test_app_icon_lookup() {
         env::set_var("XDG_DATA_DIRS", "tests");
 
-        let theme = IconTheme::from_name("themed").unwrap();
-
-        assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
-                    Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
+        test_lookup!("themed", "deepin-deb-installer", 32, 1
+                    => "tests/icons/themed/apps/32/deepin-deb-installer.svg");
     }
 
     #[test]
     fn test_in_another_base_dir() {
         env::set_var("XDG_DATA_DIRS", "tests:tests/fake_home/.local/share");
 
-        let theme = IconTheme::from_name("themed").unwrap();
+        // clear cache
+        ICON_THEME_CACHE.lock().unwrap().clear();
 
-        assert_eq!(theme.lookup_icon(&"just-in-another-base".into(), 16, 1),
-                    Some("tests/fake_home/.local/share/icons/themed/apps/16/just-in-another-base.png".into()));
+        test_lookup!("themed", "just-in-another-base", 16, 1
+                    => "tests/fake_home/.local/share/icons/themed/apps/16/just-in-another-base.png");
+
+        // clear cache
+        ICON_THEME_CACHE.lock().unwrap().clear();
+    }
+
+    #[test]
+    fn test_icon_theme_lru_cache() {
+        env::set_var("XDG_DATA_DIRS", "tests");
+
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+        let capacity = cache.capacity();
+        cache.clear();
+        cache.set_capacity(1);
+        drop(cache);
+
+        assert_eq!(0, ICON_THEME_CACHE.lock().unwrap().len());
+
+        test_lookup!("themed", "test", 48, 1
+                    => "tests/icons/themed/apps/48/test.png");
+        // cache should have 1 new item.
+        assert_eq!(1, ICON_THEME_CACHE.lock().unwrap().len());
+
+        let _ = lookup!("hicolor", "test", 48, 1);
+        assert_eq!(1, ICON_THEME_CACHE.lock().unwrap().len());
+        assert!(ICON_THEME_CACHE.lock().unwrap().contains_key("hicolor"));
+        assert!(!ICON_THEME_CACHE.lock().unwrap().contains_key("themed"));
+
+        // clear cache
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+        cache.clear();
+        cache.set_capacity(capacity);
     }
 
     #[test]
@@ -494,9 +542,7 @@ mod test {
 
     #[test]
     fn test_extra_lookup_dir() {
-        env::set_var("XDG_DATA_DIRS", "tests");
-
-        let mut theme = IconTheme::from_name("hicolor").unwrap();
+        let mut theme = IconTheme::from_dir("tests/icons/hicolor").unwrap();
 
         // in default, can't find any match
         assert_eq!(theme.lookup_icon(&"ExtraIcon".into(), 48, 1), None);

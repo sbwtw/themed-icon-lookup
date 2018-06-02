@@ -3,6 +3,7 @@ use icon_theme::*;
 
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 
 macro_rules! ret_if_found {
     ($value: expr) => {
@@ -14,7 +15,7 @@ macro_rules! ret_if_found {
 }
 
 lazy_static! {
-    static ref HICOLOR_THEME: Option<IconTheme> = IconTheme::from_name("hicolor").ok();
+    static ref HICOLOR_THEME: Option<Arc<IconTheme>> = IconTheme::from_name("hicolor").ok();
     static ref DEFAULT_THEME_NAME: String = get_default_icon_theme_name().unwrap_or("hicolor".to_string());
 }
 

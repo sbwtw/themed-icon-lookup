@@ -6,6 +6,7 @@
 //!
 
 extern crate ini;
+extern crate lru_cache;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
