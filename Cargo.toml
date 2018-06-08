@@ -16,6 +16,7 @@ lazy_static = "*"
 rayon = "*"
 lru-cache = "*"
 log = "*"
+bitflags = "*"
 
 [build-dependencies]
 cbindgen = "*"

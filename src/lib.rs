@@ -13,6 +13,8 @@ extern crate lazy_static;
 extern crate log;
 extern crate rayon;
 extern crate gtk_icon_cache;
+#[macro_use]
+extern crate bitflags;
 
 #[macro_use]
 pub mod macros;

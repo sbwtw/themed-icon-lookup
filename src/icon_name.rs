@@ -1,6 +1,12 @@
 
 use std::convert::From;
 
+bitflags! {
+    struct FallbackRules: u32 {
+        const SYMBOLIC = 0b00000001;
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct IconName {
     inner_name: String,
@@ -9,7 +15,9 @@ pub struct IconName {
 impl<T> From<T> for IconName
   where T: AsRef<str> {
     fn from(from: T) -> Self {
-        Self { inner_name: from.as_ref().to_string() }
+        Self {
+            inner_name: from.as_ref().to_string(),
+        }
     }
 }
 
