@@ -296,6 +296,17 @@ impl IconTheme {
         self.extra_dirs.push(path.as_ref().into());
     }
 
+    fn sub_dirs_for_icon<T: AsRef<str>>(&self, icon: T) -> Vec<&IconDirectory> {
+        match self.gtk_cache.as_ref().and_then(|x| x.lookup(icon.as_ref())) {
+            Some(dirs) => {
+                self.sub_dirs.par_iter()
+                    .filter(|x| dirs.contains(&&x.name))
+                    .collect()
+            }
+            _ => self.sub_dirs.iter().collect(),
+        }
+    }
+
     pub fn parents(&self) -> &Vec<String> {
         &self.inherits
     }
@@ -303,14 +314,7 @@ impl IconTheme {
     pub fn lookup_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
 
         let ref name = name.name();
-        let ref sub_dirs: Vec<&IconDirectory> = match self.gtk_cache.as_ref().and_then(|x| x.lookup(name)) {
-            Some(dirs) => {
-                self.sub_dirs.par_iter()
-                    .filter(|x| dirs.contains(&&x.name))
-                    .collect()
-            }
-            _ => self.sub_dirs.iter().collect(),
-        };
+        let ref sub_dirs = self.sub_dirs_for_icon(name);
 
         let r = sub_dirs.par_iter()
             .filter(|sub| sub.matches_size(size, scale))
@@ -349,18 +353,13 @@ impl IconTheme {
         if closest_file.is_some() { return closest_file; }
 
         // test in extra dirs
-        for extra_dir in self.extra_dirs.iter().filter(|x| x.is_dir()) {
-            for ext in EXTRA_EXTS {
-                let p: PathBuf = format!("{}/{}.{}", extra_dir.display(), name, ext).into();
+        let extra = self.extra_dirs.par_iter()
+                        .filter(|x| x.is_dir())
+                        .flat_map(|x| EXTRA_EXTS.par_iter()
+                                        .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), name, ext).into()))
+                        .find_any(|x: &PathBuf| x.is_file());
 
-                if p.is_file() {
-                    return Some(p);
-                }
-            }
-        }
-
-        // not found
-        None
+        return extra
     }
 
     pub fn lookup_fallback_icon(&self, name: &IconName, size: i32, scale: i32) -> Option<PathBuf> {
@@ -375,17 +374,17 @@ impl IconTheme {
         // fallback without any size/scale match
         let mut fallback = name.clone();
         while let Some(fallback) = fallback.fallback() {
-            for basedir in &self.base_dirs {
-                for subdir in &self.sub_dirs {
-                    for ext in BASIC_EXTS {
-                        let p: PathBuf = format!("{}/{}/{}.{}", basedir.display(), subdir.name, fallback.name(), ext).into();
-
-                        if p.is_file() {
-                            return Some(p);
-                        }
-                    }
-                }
-            }
+            let ref sub_dirs = self.sub_dirs_for_icon(fallback.name());
+            let r = sub_dirs.par_iter()
+                          .filter(|sub| sub.matches_size(size, scale))
+                          .flat_map(|sub| self.base_dirs.par_iter()
+                                          .map_with(sub, |sub, base| format!("{}/{}", base.display(), sub.name)))
+                          .map(|p| p.into())
+                          .filter(|p: &PathBuf| p.is_dir())
+                          .flat_map(|x| BASIC_EXTS.par_iter()
+                                          .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), fallback.name(), ext).into()))
+                          .find_any(|x: &PathBuf| x.is_file());
+            if r.is_some() { return r; }
         }
 
         None
@@ -427,12 +426,10 @@ mod test {
 
     #[test]
     fn test_app_icon_lookup() {
-        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
 
-        env::set_var("XDG_DATA_DIRS", "tests");
-
-        test_lookup!("themed", "deepin-deb-installer", 32, 1
-                    => "tests/icons/themed/apps/32/deepin-deb-installer.svg");
+        assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
+                    Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
     }
 
     #[test]
