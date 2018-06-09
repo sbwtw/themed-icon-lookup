@@ -281,6 +281,11 @@ impl IconTheme {
         Ok(theme)
     }
 
+    #[cfg(test)]
+    fn clear_gtk_cache(&mut self) {
+        self.gtk_cache = None;
+    }
+
     fn append_base_dir<T: AsRef<Path>>(&mut self, path: T) {
 
         let p = path.as_ref().into();
@@ -565,12 +570,12 @@ mod test {
         let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
         let capacity = cache.capacity();
-        cache.clear();
         cache.set_capacity(0);
         drop(cache);
 
         b.iter(|| {
-            let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
+            let mut theme = IconTheme::from_dir("tests/icons/themed").unwrap();
+            theme.clear_gtk_cache();
 
             assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
                         Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
@@ -580,15 +585,11 @@ mod test {
                         None);
             assert_eq!(theme.lookup_fallback_icon(&"deepin-deb-installer-extend".into(), 48, 1),
                         Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()));
-            assert_eq!(find_icon_in_theme(&theme, "TestAppIcon", 48, 1),
-                        Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
             assert_eq!(theme.lookup_icon(&"NotFound".into(), 48, 1),
                         None);
         });
 
-        // clear cache
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
-        cache.clear();
         cache.set_capacity(capacity);
     }
 }
