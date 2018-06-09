@@ -565,8 +565,8 @@ mod test {
                     // Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
     }
 
-    #[bench]
-    fn bench_lookup(b: &mut Bencher) {
+    fn bench_test(b: &mut Bencher, gtk_cache: bool) {
+
         let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
         let capacity = cache.capacity();
@@ -575,7 +575,9 @@ mod test {
 
         b.iter(|| {
             let mut theme = IconTheme::from_dir("tests/icons/themed").unwrap();
-            theme.clear_gtk_cache();
+            if !gtk_cache {
+                theme.clear_gtk_cache();
+            }
 
             assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
                         Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
@@ -591,5 +593,15 @@ mod test {
 
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
         cache.set_capacity(capacity);
+    }
+
+    #[bench]
+    fn bench_lookup_with_gtk_cache(b: &mut Bencher) {
+        bench_test(b, true);
+    }
+
+    #[bench]
+    fn bench_lookup_without_gtk_cache(b: &mut Bencher) {
+        bench_test(b, false);
     }
 }
