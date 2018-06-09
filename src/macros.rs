@@ -1,6 +1,13 @@
 
 #[cfg(test)]
 macro_rules! test_lookup {
+    ($theme: ident, $icon: expr, $size: expr, $scale: expr => $want: expr) => {
+        let result = find_icon_in_theme(&$theme, $icon, $size, $scale);
+        let want = Some($want.into());
+
+        assert_eq!(result, want);
+    };
+
     ($theme: expr, $icon: expr, $size: expr, $scale: expr => $want: expr) => {
         let result = lookup!($theme, $icon, $size, $scale);
         let want = Some($want.into());

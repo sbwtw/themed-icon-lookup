@@ -574,21 +574,25 @@ mod test {
         drop(cache);
 
         b.iter(|| {
-            let mut theme = IconTheme::from_dir("tests/icons/themed").unwrap();
+            let mut theme = IconTheme::from_dir("tests/icons/big").unwrap();
             if !gtk_cache {
                 theme.clear_gtk_cache();
             }
 
-            assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
-                        Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
-            assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
-                        Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
-            assert_eq!(theme.lookup_icon(&"deepin-deb-installer-extend".into(), 48, 1),
-                        None);
-            assert_eq!(theme.lookup_fallback_icon(&"deepin-deb-installer-extend".into(), 48, 1),
-                        Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()));
             assert_eq!(theme.lookup_icon(&"NotFound".into(), 48, 1),
                         None);
+            test_lookup!(theme, "firefox-nightly", 48, 1
+                        => "tests/icons/big/48x48/apps/firefox-nightly.png");
+            test_lookup!(theme, "firefox-nightly", 96, 1
+                        => "tests/icons/big/64x64/apps/firefox-nightly.png");
+            test_lookup!(theme, "firefox-nightly", 24, 2
+                        => "tests/icons/big/48x48/apps/firefox-nightly.png");
+            test_lookup!(theme, "mpv", 24, 1
+                        => "tests/icons/big/scalable/apps/mpv.svg");
+            test_lookup!(theme, "mpv-symbolic", 24, 1
+                        => "tests/icons/big/symbolic/apps/mpv-symbolic.svg");
+            test_lookup!(theme, "libreoffice-oasis-master-document", 48, 1
+                        => "tests/icons/big/48x48/mimetypes/libreoffice-oasis-master-document.png");
         });
 
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
