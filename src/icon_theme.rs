@@ -372,20 +372,20 @@ impl IconTheme {
         }
 
         // fallback without any size/scale match
-        let mut fallback = name.clone();
-        while let Some(fallback) = fallback.fallback() {
-            let ref sub_dirs = self.sub_dirs_for_icon(fallback.name());
-            let r = sub_dirs.par_iter()
-                          .filter(|sub| sub.matches_size(size, scale))
-                          .flat_map(|sub| self.base_dirs.par_iter()
-                                          .map_with(sub, |sub, base| format!("{}/{}", base.display(), sub.name)))
-                          .map(|p| p.into())
-                          .filter(|p: &PathBuf| p.is_dir())
-                          .flat_map(|x| BASIC_EXTS.par_iter()
-                                          .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), fallback.name(), ext).into()))
-                          .find_any(|x: &PathBuf| x.is_file());
-            if r.is_some() { return r; }
-        }
+        // let mut fallback = name.clone();
+        // while let Some(fallback) = fallback.fallback() {
+        //     let ref sub_dirs = self.sub_dirs_for_icon(fallback.name());
+        //     let r = sub_dirs.par_iter()
+        //                   .filter(|sub| sub.matches_size(size, scale))
+        //                   .flat_map(|sub| self.base_dirs.par_iter()
+        //                                   .map_with(sub, |sub, base| format!("{}/{}", base.display(), sub.name)))
+        //                   .map(|p| p.into())
+        //                   .filter(|p: &PathBuf| p.is_dir())
+        //                   .flat_map(|x| BASIC_EXTS.par_iter()
+        //                                   .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), fallback.name(), ext).into()))
+        //                   .find_any(|x: &PathBuf| x.is_file());
+        //     if r.is_some() { return r; }
+        // }
 
         None
     }
@@ -397,6 +397,7 @@ mod test {
     use icon_lookup::*;
 
     use std::env;
+    use test::Bencher;
 
     #[test]
     fn test_fetch_user_dir() {
@@ -495,12 +496,14 @@ mod test {
         // invalid icon theme should't save
         test_lookup!("InvalidThemeName", "TestAppIcon", 16, 1
                     => "tests/icons/hicolor/apps/16/TestAppIcon.png");
-        assert_eq!(0, ICON_THEME_CACHE.lock().unwrap().len());
+        assert!(!ICON_THEME_CACHE.lock().unwrap().contains_key("InvalidThemeName"));
+
+        ICON_THEME_CACHE.lock().unwrap().clear();
 
         // valid icon theme should be saved
         test_lookup!("hicolor", "TestAppIcon", 16, 1
                     => "tests/icons/hicolor/apps/16/TestAppIcon.png");
-        assert_eq!(1, ICON_THEME_CACHE.lock().unwrap().len());
+        assert!(ICON_THEME_CACHE.lock().unwrap().contains_key("hicolor"));
 
         // clear cache
         let mut cache = ICON_THEME_CACHE.lock().unwrap();
@@ -555,5 +558,37 @@ mod test {
         // TODO:
         // assert_eq!(theme.lookup_icon(&"extraxpm".into(), 48, 1),
                     // Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
+    }
+
+    #[bench]
+    fn bench_lookup(b: &mut Bencher) {
+        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+        let capacity = cache.capacity();
+        cache.clear();
+        cache.set_capacity(0);
+        drop(cache);
+
+        b.iter(|| {
+            let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
+
+            assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
+                        Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
+            assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
+                        Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
+            assert_eq!(theme.lookup_icon(&"deepin-deb-installer-extend".into(), 48, 1),
+                        None);
+            assert_eq!(theme.lookup_fallback_icon(&"deepin-deb-installer-extend".into(), 48, 1),
+                        Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()));
+            assert_eq!(find_icon_in_theme(&theme, "TestAppIcon", 48, 1),
+                        Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
+            assert_eq!(theme.lookup_icon(&"NotFound".into(), 48, 1),
+                        None);
+        });
+
+        // clear cache
+        let mut cache = ICON_THEME_CACHE.lock().unwrap();
+        cache.clear();
+        cache.set_capacity(capacity);
     }
 }

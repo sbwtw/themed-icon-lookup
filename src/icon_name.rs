@@ -27,10 +27,10 @@ impl IconName {
     }
 
     pub fn fallback(&mut self) -> Option<&IconName> {
-        let last_dot = self.inner_name.rfind('.')?;
-        let last_dash = self.inner_name[..last_dot].rfind('-')?;
+        let len = self.inner_name.len();
+        let last_dash = self.inner_name.rfind('-')?;
 
-        let _ = self.inner_name.drain(last_dash..last_dot).count();
+        let _ = self.inner_name.drain(last_dash..len).count();
 
         Some(self)
     }
@@ -42,14 +42,14 @@ mod test {
 
     #[test]
     fn test_icon_name_fallback() {
-        let mut icon_name = IconName::from("some-icon-name.svg");
-        assert_eq!(icon_name.name(), "some-icon-name.svg");
+        let mut icon_name = IconName::from("some-icon-name");
+        assert_eq!(icon_name.name(), "some-icon-name");
 
         icon_name.fallback();
-        assert_eq!(icon_name.name(), "some-icon.svg");
+        assert_eq!(icon_name.name(), "some-icon");
 
         icon_name.fallback();
-        assert_eq!(icon_name.name(), "some.svg");
+        assert_eq!(icon_name.name(), "some");
 
         assert!(icon_name.fallback().is_none());
     }

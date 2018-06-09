@@ -8,7 +8,7 @@ use std::sync::Arc;
 macro_rules! ret_if_found {
     ($value: expr) => {
         if let Some(path) = $value {
-            assert!(path.is_file());
+            debug_assert!(path.is_file());
             return Some(path)
         }
     };
@@ -38,17 +38,23 @@ fn get_default_icon_theme_name() -> Option<String> {
 pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32) -> Option<PathBuf>
   where T: AsRef<str>, I: AsRef<str> {
 
-    let theme = IconTheme::from_name(theme.as_ref()).ok();
+    match IconTheme::from_name(theme.as_ref()) {
+        Ok(theme) => find_icon_in_theme(&*theme, icon, size, scale),
+        _ => find_icon(icon, size, scale),
+    }
+}
+
+pub fn find_icon_in_theme<T>(theme: &IconTheme, icon: T, size: i32, scale: i32) -> Option<PathBuf>
+  where T: AsRef<str> {
+
     let icon = &icon.into();
 
-    if let Some(ref theme) = theme {
-        ret_if_found!(theme.lookup_icon(icon, size, scale));
+    ret_if_found!(theme.lookup_icon(icon, size, scale));
 
-        // find in parents
-        for parent in theme.parents() {
-            if let Ok(parent_theme) = IconTheme::from_name(parent) {
-                ret_if_found!(parent_theme.lookup_icon(icon, size, scale));
-            }
+    // find in parents
+    for parent in theme.parents() {
+        if let Ok(parent_theme) = IconTheme::from_name(parent) {
+            ret_if_found!(parent_theme.lookup_icon(icon, size, scale));
         }
     }
 
@@ -58,14 +64,12 @@ pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32)
     }
 
     // fallback
-    if let Some(ref theme) = theme {
-        ret_if_found!(theme.lookup_fallback_icon(icon, size, scale));
+    ret_if_found!(theme.lookup_fallback_icon(icon, size, scale));
 
-        // fallback in parents
-        for parent in theme.parents() {
-            if let Ok(parent_theme) = IconTheme::from_name(parent) {
-                ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
-            }
+    // fallback in parents
+    for parent in theme.parents() {
+        if let Ok(parent_theme) = IconTheme::from_name(parent) {
+            ret_if_found!(parent_theme.lookup_fallback_icon(icon, size, scale));
         }
     }
 
@@ -116,5 +120,13 @@ mod test {
         // should be fallback to hicolor
         assert_eq!(Some("tests/icons/hicolor/apps/16/TestAppIcon.png".into()),
                     find_icon_with_theme_name("InvalidThemeName", "TestAppIcon", 16, 1));
+    }
+
+    #[test]
+    fn test_name_fallback() {
+        let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
+
+        assert_eq!(find_icon_in_theme(&theme, "deepin-deb-installer-extend", 48, 1),
+                    Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()));
     }
 }
