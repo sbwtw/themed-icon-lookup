@@ -321,17 +321,17 @@ impl IconTheme {
         let ref name = name.name();
         let ref sub_dirs = self.sub_dirs_for_icon(name);
 
-        let r = sub_dirs.par_iter()
-            .filter(|sub| sub.matches_size(size, scale))
-            .flat_map(|sub| self.base_dirs.par_iter()
-                            .map_with(sub, |sub, base| format!("{}/{}", base.display(), sub.name)))
-            .map(|p| p.into())
-            .filter(|p: &PathBuf| p.is_dir())
-            .flat_map(|x| BASIC_EXTS.par_iter()
-                            .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), name, ext).into()))
-            .find_first(|x: &PathBuf| x.is_file());
+        for sub in sub_dirs.iter() {
+            if !sub.matches_size(size, scale) { continue; }
 
-        if r.is_some() { return r; }
+            for base in self.base_dirs.iter() {
+                for ext in BASIC_EXTS.iter() {
+                    let p: PathBuf = format!("{}/{}/{}.{}", base.display(), sub.name, name, ext).into();
+
+                    if p.is_file() { return Some(p); }
+                }
+            }
+        }
 
         // test closest file
         let mut minimal_distance = i32::max_value();
