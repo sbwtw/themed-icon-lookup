@@ -1,12 +1,45 @@
 
 #[cfg(test)]
 macro_rules! test_lookup {
-    ($theme: expr, $icon: expr, $size: expr, $scale: expr => $want: expr) => {
-        let result = lookup!($theme, $icon, $size, $scale);
-        let want = Some($want.into());
 
-        assert_eq!(result, want);
+    ($icon: expr, $size: expr, $scale: expr => $($wants: expr),+) => {
+        let result = find_icon($icon, $size, $scale).unwrap();
+
+        let mut availables: HashSet<PathBuf> = HashSet::new();
+        $(
+            availables.insert($wants.into());
+        )+
+
+        if !availables.contains(&result) {
+            panic!("\nresult: {:?},\nwants: {:?}", result, availables);
+        }
     };
+
+    ($theme: ident, $icon: expr, $size: expr, $scale: expr => $($wants: expr),+) => {
+        let result = find_icon_in_theme(&$theme, $icon, $size, $scale).unwrap();
+
+        let mut availables: HashSet<PathBuf> = HashSet::new();
+        $(
+            availables.insert($wants.into());
+        )+
+
+        if !availables.contains(&result) {
+            panic!("\nresult: {:?},\nwants: {:?}", result, availables);
+        }
+    };
+
+    ($theme: expr, $icon: expr, $size: expr, $scale: expr => $($wants: expr),+) => {{
+        let result = lookup!($theme, $icon, $size, $scale).unwrap();
+
+        let mut availables: HashSet<PathBuf> = HashSet::new();
+        $(
+            availables.insert($wants.into());
+        )+
+
+        if !availables.contains(&result) {
+            panic!("result: {:?},\nwants: {:?}", result, availables);
+        }
+    }};
 }
 
 #[macro_export]

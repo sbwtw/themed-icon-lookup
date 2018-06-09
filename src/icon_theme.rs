@@ -329,7 +329,7 @@ impl IconTheme {
             .filter(|p: &PathBuf| p.is_dir())
             .flat_map(|x| BASIC_EXTS.par_iter()
                             .map_with(x, |x, ext| format!("{}/{}.{}", x.display(), name, ext).into()))
-            .find_first(|x: &PathBuf| x.is_file());
+            .find_any(|x: &PathBuf| x.is_file());
 
         if r.is_some() { return r; }
 
@@ -402,6 +402,7 @@ mod test {
     use icon_lookup::*;
 
     use std::env;
+    use std::collections::HashSet;
     use test::Bencher;
 
     #[test]
@@ -434,8 +435,9 @@ mod test {
     fn test_app_icon_lookup() {
         let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
 
-        assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
-                    Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
+        test_lookup!(theme, "deepin-deb-installer", 32, 1
+                    => "tests/icons/themed/apps/scalable/deepin-deb-installer.svg",
+                       "tests/icons/themed/apps/32/deepin-deb-installer.svg");
     }
 
     #[test]
@@ -500,14 +502,16 @@ mod test {
 
         // invalid icon theme should't save
         test_lookup!("InvalidThemeName", "TestAppIcon", 16, 1
-                    => "tests/icons/hicolor/apps/16/TestAppIcon.png");
+                    => "tests/icons/hicolor/apps/16/TestAppIcon.png",
+                       "tests/icons/hicolor/apps/scalable/TestAppIcon.svg");
         assert!(!ICON_THEME_CACHE.lock().unwrap().contains_key("InvalidThemeName"));
 
         ICON_THEME_CACHE.lock().unwrap().clear();
 
         // valid icon theme should be saved
         test_lookup!("hicolor", "TestAppIcon", 16, 1
-                    => "tests/icons/hicolor/apps/16/TestAppIcon.png");
+                    => "tests/icons/hicolor/apps/16/TestAppIcon.png",
+                       "tests/icons/hicolor/apps/scalable/TestAppIcon.svg");
         assert!(ICON_THEME_CACHE.lock().unwrap().contains_key("hicolor"));
 
         // clear cache
@@ -520,12 +524,14 @@ mod test {
     fn test_lookup_threshold() {
         let theme = IconTheme::from_dir("tests/icons/hicolor").unwrap();
 
-        assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 46, 1),
-                    Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
-        assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 50, 1),
-                    Some("tests/icons/hicolor/apps/48/TestAppIcon.png".into()));
-        assert_eq!(theme.lookup_icon(&"TestAppIcon".into(), 51, 1),
-                    Some("tests/icons/hicolor/apps/scalable/TestAppIcon.svg".into()));
+        test_lookup!(theme, "TestAppIcon", 46, 1
+                    => "tests/icons/hicolor/apps/48/TestAppIcon.png",
+                       "tests/icons/hicolor/apps/scalable/TestAppIcon.svg");
+        test_lookup!(theme, "TestAppIcon", 50, 1
+                    => "tests/icons/hicolor/apps/48/TestAppIcon.png",
+                       "tests/icons/hicolor/apps/scalable/TestAppIcon.svg");
+        test_lookup!(theme, "TestAppIcon", 51, 1
+                    => "tests/icons/hicolor/apps/scalable/TestAppIcon.svg");
     }
 
     #[test]
@@ -574,21 +580,27 @@ mod test {
         drop(cache);
 
         b.iter(|| {
-            let mut theme = IconTheme::from_dir("tests/icons/themed").unwrap();
+            let mut theme = IconTheme::from_dir("tests/icons/big").unwrap();
             if !gtk_cache {
                 theme.clear_gtk_cache();
             }
 
-            assert_eq!(theme.lookup_icon(&"name.with.dot".into(), 48, 1),
-                        Some("tests/icons/themed/apps/16/name.with.dot.png".into()));
-            assert_eq!(theme.lookup_icon(&"deepin-deb-installer".into(), 32, 1),
-                        Some("tests/icons/themed/apps/32/deepin-deb-installer.svg".into()));
-            assert_eq!(theme.lookup_icon(&"deepin-deb-installer-extend".into(), 48, 1),
-                        None);
-            assert_eq!(theme.lookup_fallback_icon(&"deepin-deb-installer-extend".into(), 48, 1),
-                        Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()));
-            assert_eq!(theme.lookup_icon(&"NotFound".into(), 48, 1),
-                        None);
+            test_lookup!(theme, "firefox-nightly", 48, 1
+                        => "tests/icons/big/48x48/apps/firefox-nightly.png",
+                           "tests/icons/big/scalable/apps/firefox-nightly.png");
+            test_lookup!(theme, "firefox-nightly", 96, 1
+                        => "tests/icons/big/64x64/apps/firefox-nightly.png",
+                           "tests/icons/big/scalable/apps/firefox-nightly.png");
+            test_lookup!(theme, "firefox-nightly", 24, 2
+                        => "tests/icons/big/48x48/apps/firefox-nightly.png",
+                           "tests/icons/big/scalable/apps/firefox-nightly.png");
+            test_lookup!(theme, "mpv", 24, 1
+                        => "tests/icons/big/scalable/apps/mpv.svg");
+            test_lookup!(theme, "mpv-symbolic", 24, 1
+                        => "tests/icons/big/symbolic/apps/mpv-symbolic.svg");
+            test_lookup!(theme, "libreoffice-oasis-master-document", 48, 1
+                        => "tests/icons/big/48x48/mimetypes/libreoffice-oasis-master-document.png",
+                           "tests/icons/big/scalable/mimetypes/libreoffice-oasis-master-document.svg");
         });
 
         let mut cache = ICON_THEME_CACHE.lock().unwrap();

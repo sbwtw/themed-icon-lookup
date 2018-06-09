@@ -92,6 +92,7 @@ mod test {
     use icon_lookup::*;
 
     use std::env;
+    use std::collections::HashSet;
 
     #[test]
     fn test_find_fixed() {
@@ -100,11 +101,14 @@ mod test {
         env::set_var("XDG_DATA_DIRS", "tests");
 
         test_lookup!("themed", "deepin-deb-installer", 16, 1
-                    => "tests/icons/themed/apps/16/deepin-deb-installer.svg");
+                    => "tests/icons/themed/apps/16/deepin-deb-installer.svg",
+                       "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
         test_lookup!("themed", "deepin-deb-installer", 32, 1
-                    => "tests/icons/themed/apps/32/deepin-deb-installer.svg");
+                    => "tests/icons/themed/apps/32/deepin-deb-installer.svg",
+                       "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
         test_lookup!("themed", "deepin-deb-installer", 48, 1
-                    => "tests/icons/themed/apps/48/deepin-deb-installer.svg");
+                    => "tests/icons/themed/apps/48/deepin-deb-installer.svg",
+                       "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
         test_lookup!("themed", "deepin-deb-installer", 96, 1
                     => "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
         test_lookup!("themed", "deepin-deb-installer", 24, 1
@@ -118,15 +122,17 @@ mod test {
         env::set_var("XDG_DATA_DIRS", "tests");
 
         // should be fallback to hicolor
-        assert_eq!(Some("tests/icons/hicolor/apps/16/TestAppIcon.png".into()),
-                    find_icon_with_theme_name("InvalidThemeName", "TestAppIcon", 16, 1));
+        test_lookup!("InvalidThemeName", "TestAppIcon", 16, 1
+                    => "tests/icons/hicolor/apps/16/TestAppIcon.png",
+                       "tests/icons/hicolor/apps/scalable/TestAppIcon.svg");
     }
 
     #[test]
     fn test_name_fallback() {
         let theme = IconTheme::from_dir("tests/icons/themed").unwrap();
 
-        assert_eq!(find_icon_in_theme(&theme, "deepin-deb-installer-extend", 48, 1),
-                    Some("tests/icons/themed/apps/48/deepin-deb-installer.svg".into()));
+        test_lookup!(theme, "deepin-deb-installer-extend", 48, 1
+                    => "tests/icons/themed/apps/48/deepin-deb-installer.svg",
+                       "tests/icons/themed/apps/scalable/deepin-deb-installer.svg");
     }
 }
