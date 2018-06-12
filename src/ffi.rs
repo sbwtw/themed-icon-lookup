@@ -22,11 +22,25 @@ macro_rules! c_strify {
     };
 }
 
+macro_rules! c_str {
+    ($c_str: ident) => {
+        unsafe { CStr::from_ptr($c_str).to_string_lossy() };
+    };
+}
+
+#[no_mangle]
+pub extern "C" fn reset_default_theme_name(theme: *const c_char) {
+
+    let theme = c_str!(theme);
+
+    icon_lookup::reset_default_theme(theme);
+}
+
 #[no_mangle]
 pub extern "C" fn find_icon_with_theme_name(theme: *const c_char, icon: *const c_char, size: i32, scale: i32) -> *const c_char {
 
-    let theme = unsafe { CStr::from_ptr(theme).to_string_lossy() };
-    let icon = unsafe { CStr::from_ptr(icon).to_string_lossy() };
+    let theme = c_str!(theme);
+    let icon = c_str!(icon);
 
     c_strify!(icon_lookup::find_icon_with_theme_name(theme, icon, size, scale))
 }
@@ -34,7 +48,7 @@ pub extern "C" fn find_icon_with_theme_name(theme: *const c_char, icon: *const c
 #[no_mangle]
 pub extern "C" fn find_icon(icon: *const c_char, size: i32, scale: i32) -> *const c_char {
 
-    let icon = unsafe { CStr::from_ptr(icon).to_string_lossy() };
+    let icon = c_str!(icon);
 
     c_strify!(icon_lookup::find_icon(icon, size, scale))
 }

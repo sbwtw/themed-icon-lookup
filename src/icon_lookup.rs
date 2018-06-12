@@ -4,6 +4,7 @@ use icon_theme::*;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
+use std::sync::RwLock;
 
 macro_rules! ret_if_found {
     ($value: expr) => {
@@ -16,7 +17,7 @@ macro_rules! ret_if_found {
 
 lazy_static! {
     static ref HICOLOR_THEME: Option<Arc<IconTheme>> = IconTheme::from_name("hicolor").ok();
-    static ref DEFAULT_THEME_NAME: String = get_default_icon_theme_name().unwrap_or("hicolor".to_string());
+    static ref DEFAULT_THEME_NAME: RwLock<String> = RwLock::new(get_default_icon_theme_name().unwrap_or("hicolor".to_string()));
 }
 
 fn get_default_icon_theme_name() -> Option<String> {
@@ -33,6 +34,11 @@ fn get_default_icon_theme_name() -> Option<String> {
     } else {
         None
     }
+}
+
+pub fn reset_default_theme<T>(theme: T)
+  where T: AsRef<str> {
+    *DEFAULT_THEME_NAME.write().unwrap() = theme.as_ref().to_string();
 }
 
 pub fn find_icon_with_theme_name<T, I>(theme: T, icon: I, size: i32, scale: i32) -> Option<PathBuf>
@@ -84,7 +90,7 @@ pub fn find_icon_in_theme<T>(theme: &IconTheme, icon: T, size: i32, scale: i32) 
 pub fn find_icon<I>(icon: I, size: i32, scale: i32) -> Option<PathBuf>
   where I: AsRef<str> {
 
-    lookup!(&*DEFAULT_THEME_NAME, icon, size, scale)
+    lookup!(&*DEFAULT_THEME_NAME.read().unwrap(), icon, size, scale)
 }
 
 #[cfg(test)]
