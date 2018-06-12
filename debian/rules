@@ -6,5 +6,5 @@ include /usr/share/dpkg/default.mk
 	dh $@
 
 override_dh_auto_build:
-	cargo build
+	cargo build --release
 

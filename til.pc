@@ -1,0 +1,12 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${prefix}/lib/
+includedir=${prefix}/include/til
+
+
+Name: themed-icon-lookup
+Description: Icon lookup library
+Version: 1.0
+Libs: -lthemed_icon_lookup
+Cflags: -I${includedir}
+

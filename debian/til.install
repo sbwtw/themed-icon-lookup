@@ -1,2 +1,3 @@
-target/release/*.so /usr/lib/til
+target/release/*.so /usr/lib/
 *.h /usr/include/til
+*.pc /usr/lib/pkgconfig/
