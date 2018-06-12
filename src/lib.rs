@@ -5,8 +5,9 @@
 //! [Icon lookup specific](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#icon_lookup)
 //!
 
-#![feature(test)]
+// #![feature(test)]
 
+// extern crate test;
 extern crate ini;
 extern crate lru_cache;
 #[macro_use]
@@ -17,7 +18,6 @@ extern crate rayon;
 extern crate gtk_icon_cache;
 #[macro_use]
 extern crate bitflags;
-extern crate test;
 
 #[macro_use]
 pub mod macros;

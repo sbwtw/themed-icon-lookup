@@ -281,10 +281,10 @@ impl IconTheme {
         Ok(theme)
     }
 
-    #[cfg(test)]
-    fn clear_gtk_cache(&mut self) {
-        self.gtk_cache = None;
-    }
+    // #[cfg(test)]
+    // fn clear_gtk_cache(&mut self) {
+    //     self.gtk_cache = None;
+    // }
 
     fn append_base_dir<T: AsRef<Path>>(&mut self, path: T) {
 
@@ -402,7 +402,7 @@ mod test {
     use icon_lookup::*;
 
     use std::env;
-    use test::Bencher;
+    // use test::Bencher;
 
     #[test]
     fn test_fetch_user_dir() {
@@ -565,47 +565,47 @@ mod test {
                     // Some("tests/extra-icons/extraxpm-with-fallback.xpm".into()));
     }
 
-    fn bench_test(b: &mut Bencher, gtk_cache: bool) {
+    // fn bench_test(b: &mut Bencher, gtk_cache: bool) {
 
-        let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
-        let mut cache = ICON_THEME_CACHE.lock().unwrap();
-        let capacity = cache.capacity();
-        cache.set_capacity(0);
-        drop(cache);
+    //     let _env_lock = TEST_ENV_MUTEX.lock().unwrap();
+    //     let mut cache = ICON_THEME_CACHE.lock().unwrap();
+    //     let capacity = cache.capacity();
+    //     cache.set_capacity(0);
+    //     drop(cache);
 
-        b.iter(|| {
-            let mut theme = IconTheme::from_dir("tests/icons/big").unwrap();
-            if !gtk_cache {
-                theme.clear_gtk_cache();
-            }
+    //     b.iter(|| {
+    //         let mut theme = IconTheme::from_dir("tests/icons/big").unwrap();
+    //         if !gtk_cache {
+    //             theme.clear_gtk_cache();
+    //         }
 
-            assert_eq!(theme.lookup_icon(&"NotFound".into(), 48, 1),
-                        None);
-            test_lookup!(theme, "firefox-nightly", 48, 1
-                        => "tests/icons/big/48x48/apps/firefox-nightly.png");
-            test_lookup!(theme, "firefox-nightly", 96, 1
-                        => "tests/icons/big/64x64/apps/firefox-nightly.png");
-            test_lookup!(theme, "firefox-nightly", 24, 2
-                        => "tests/icons/big/48x48/apps/firefox-nightly.png");
-            test_lookup!(theme, "mpv", 24, 1
-                        => "tests/icons/big/scalable/apps/mpv.svg");
-            test_lookup!(theme, "mpv-symbolic", 24, 1
-                        => "tests/icons/big/symbolic/apps/mpv-symbolic.svg");
-            test_lookup!(theme, "libreoffice-oasis-master-document", 48, 1
-                        => "tests/icons/big/48x48/mimetypes/libreoffice-oasis-master-document.png");
-        });
+    //         assert_eq!(theme.lookup_icon(&"NotFound".into(), 48, 1),
+    //                     None);
+    //         test_lookup!(theme, "firefox-nightly", 48, 1
+    //                     => "tests/icons/big/48x48/apps/firefox-nightly.png");
+    //         test_lookup!(theme, "firefox-nightly", 96, 1
+    //                     => "tests/icons/big/64x64/apps/firefox-nightly.png");
+    //         test_lookup!(theme, "firefox-nightly", 24, 2
+    //                     => "tests/icons/big/48x48/apps/firefox-nightly.png");
+    //         test_lookup!(theme, "mpv", 24, 1
+    //                     => "tests/icons/big/scalable/apps/mpv.svg");
+    //         test_lookup!(theme, "mpv-symbolic", 24, 1
+    //                     => "tests/icons/big/symbolic/apps/mpv-symbolic.svg");
+    //         test_lookup!(theme, "libreoffice-oasis-master-document", 48, 1
+    //                     => "tests/icons/big/48x48/mimetypes/libreoffice-oasis-master-document.png");
+    //     });
 
-        let mut cache = ICON_THEME_CACHE.lock().unwrap();
-        cache.set_capacity(capacity);
-    }
+    //     let mut cache = ICON_THEME_CACHE.lock().unwrap();
+    //     cache.set_capacity(capacity);
+    // }
 
-    #[bench]
-    fn bench_lookup_with_gtk_cache(b: &mut Bencher) {
-        bench_test(b, true);
-    }
+    // #[bench]
+    // fn bench_lookup_with_gtk_cache(b: &mut Bencher) {
+    //     bench_test(b, true);
+    // }
 
-    #[bench]
-    fn bench_lookup_without_gtk_cache(b: &mut Bencher) {
-        bench_test(b, false);
-    }
+    // #[bench]
+    // fn bench_lookup_without_gtk_cache(b: &mut Bencher) {
+    //     bench_test(b, false);
+    // }
 }
